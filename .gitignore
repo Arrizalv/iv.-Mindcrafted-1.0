@@ -12,8 +12,6 @@ dist
 dist-ssr
 *.local
 
-lib
-supabase
 
 # Editor directories and files
 .vscode/*
