@@ -8,11 +8,17 @@ import MarketplaceView from '../views/MarketplaceView.vue'
 import CommunityView from '../views/CommunityView.vue'
 import MentoringView from '../views/MentoringView.vue'
 import DiscussionView from '../views/DiscussionView.vue'
-import VideoRoomView from '../views/VideoRoomView.vue'
 import UserManagementView from '../views/admin/UserManagementView.vue'
 import ManageCoursesView from '../views/creator/ManageCoursesView.vue'
 import MentorScheduleView from '../views/creator/MentorScheduleView.vue'
 import UnauthorizedView from '../views/UnauthorizedView.vue'
+import 'vue-router'
+
+declare module 'vue-router' {
+  interface RouteMeta {
+    allowedRoles?: string[]
+  }
+}
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -109,7 +115,7 @@ const router = createRouter({
 
 
 // --- THE ULTIMATE GUARD ---
-router.beforeEach(async (to, from, next) => {
+router.beforeEach(async (to, _from, next) => {
   // 1. Cek Session User
   const { data: { session } } = await supabase.auth.getSession()
   
@@ -137,8 +143,10 @@ router.beforeEach(async (to, from, next) => {
     const userRoles = userRolesData ? userRolesData.map((r: any) => r.roles.name) : []
 
     // Cek apakah user punya setidaknya SATU role yang diizinkan
-    const hasPermission = to.meta.allowedRoles.some((role: string) => userRoles.includes(role))
-
+    const allowedRoles = to.meta.allowedRoles ?? []
+    const hasPermission = allowedRoles.some(role =>
+    userRoles.includes(role)
+)
     if (!hasPermission) {
       // Kalau gak punya izin, lempar ke halaman Unauthorized atau Dashboard
       return next('/unauthorized') 
