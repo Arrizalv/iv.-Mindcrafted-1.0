@@ -8,22 +8,34 @@ const loading = ref(true)
 const fetchApplications = async () => {
   loading.value = true
   
-  // Kita tambahkan inner join (!inner) biar data yang gak punya profile gak bikin error
-  // Tapi pakai left join (default) juga gapapa.
+  // DEBUGGING: Cek dulu data mentahnya masuk gak
+  const { data: rawData, error: rawError } = await supabase
+    .from('role_applications')
+    .select('*')
+  console.log('Semua Data Aplikasi:', rawData) 
+
+  // FETCH UTAMA
   const { data, error } = await supabase
     .from('role_applications')
     .select(`
       *,
-      profiles ( full_name, avatar_url, email )
+      profiles!inner ( full_name, avatar_url, email ) 
     `)
-    .eq('status', 'pending')
+    // Pakai !inner (Inner Join) untuk memastikan hanya mengambil data yang profilenya ada
+    // Kalau mau aman pakai left join, hapus "!inner"
+    .ilike('status', 'pending') // Ganti .eq jadi .ilike biar Gak Peduli Huruf Besar/Kecil
     .order('created_at', { ascending: false })
 
   if (error) {
-    console.error("Error fetching apps:", error) // Cek console browser kalau masih kosong!
+    console.error("Error fetching apps:", error.message)
+    alert("Gagal ambil data: " + error.message)
   }
 
-  if (data) applications.value = data
+  if (data) {
+    console.log("Data yang berhasil diambil:", data)
+    applications.value = data
+  }
+  
   loading.value = false
 }
 
