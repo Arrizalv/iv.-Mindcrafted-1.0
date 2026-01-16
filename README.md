@@ -1,33 +1,37 @@
+# 🧠 Mindcrafted - Future Learning Platform
+
+![Mindcrafted Banner](https://via.placeholder.com/1200x400/1a1b41/00d4e3?text=MINDCRAFTED+PLATFORM)
+
 <div align="center">
 
-# ✨ Mindcrafted 1.0 ✨
+[![Vue 3](https://img.shields.io/badge/Vue.js-3.0-4FC08D?style=for-the-badge&logo=vue.js)](https://vuejs.org/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind-CSS-38B2AC?style=for-the-badge&logo=tailwind-css)](https://tailwindcss.com/)
+[![Supabase](https://img.shields.io/badge/Supabase-Database-3ECF8E?style=for-the-badge&logo=supabase)](https://supabase.com/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-4.0-3178C6?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org/)
 
-**Sebuah platform komunitas untuk belajar, berbagi, dan bertumbuh bersama.**
+**E-Learning • Marketplace • Mentoring • Community**
 
 </div>
 
 ---
 
-Mindcrafted adalah sebuah web aplikasi yang dibangun untuk para pembelajar, kreator, dan mentor untuk terhubung. Baik Anda ingin mempelajari keterampilan baru, menjual kursus, atau membimbing orang lain, Mindcrafted menyediakan alat yang Anda butuhkan untuk sukses di bidang keahlian Anda.
+## 📖 Tentang Project
 
-## 🚀 Fitur Utama
+**Mindcrafted** adalah platform edukasi revolusioner yang menggabungkan fitur Learning Management System (LMS), Marketplace Freelance, dan Komunitas dalam satu ekosistem.
 
-- **🧠 Kursus:** Ikuti atau buat kursus mendalam.
-- **🛒 Marketplace:** Jual dan beli sumber daya digital.
-- **🤝 Mentoring:** Cari mentor atau tawarkan bimbingan.
-- **💬 Komunitas & Diskusi:** Terhubung dengan rekan-rekan dan berkolaborasi.
-- **👤 Manajemen Pengguna & Peran:** Sistem otentikasi dan otorisasi yang aman dengan peran yang berbeda (Admin, Instructor, Mentor).
+Project ini dibangun dengan fokus pada **Sistem Role-Based Access Control (RBAC)** yang canggih, memungkinkan satu pengguna memiliki banyak peran sekaligus (misal: Student di pagi hari, Mentor di malam hari).
 
----
+## ✨ Fitur Unggulan
 
-## 🛠️ Teknologi yang Digunakan
+### 🔐 Keamanan & Autentikasi
+* **Multi-Role System:** Support role `Student`, `Instructor`, `Mentor`, `Admin`.
+* **Navigation Guards:** Proteksi rute frontend (Student tidak bisa akses halaman Admin).
+* **Row Level Security (RLS):** Proteksi level database (User A tidak bisa mengintip data User B).
 
-- **Frontend:** [Vue.js 3](https://vuejs.org/) (Composition API)
-- **Build Tool:** [Vite](https://vitejs.dev/)
-- **Bahasa:** [TypeScript](https://www.typescriptlang.org/)
-- **Styling:** [Tailwind CSS](https://tailwindcss.com/)
-- **Backend & Database:** [Supabase](https://supabase.io/)
-- **Routing:** [Vue Router](https://router.vuejs.org/)
+### 👥 User Experience
+* **Dashboard Adaptif:** Tampilan dashboard berubah sesuai role user.
+* **Apply to Teach:** Flow pendaftaran otomatis bagi user yang ingin menjadi Instructor/Mentor.
+* **Admin Control Center:** Panel khusus Admin untuk memantau user dan menyetujui lamaran instructor.
 
 ---
 
