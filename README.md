@@ -1,8 +1,5 @@
-# 🧠 Mindcrafted - Future Learning Platform
-
-![Mindcrafted Banner](https://via.placeholder.com/1200x400/1a1b41/00d4e3?text=MINDCRAFTED+PLATFORM)
-
 <div align="center">
+# 🧠 Mindcrafted - Future Learning Platform
 
 [![Vue 3](https://img.shields.io/badge/Vue.js-3.0-4FC08D?style=for-the-badge&logo=vue.js)](https://vuejs.org/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind-CSS-38B2AC?style=for-the-badge&logo=tailwind-css)](https://tailwindcss.com/)
