@@ -3,7 +3,7 @@ import { ref, onMounted, computed } from 'vue'
 import { supabase } from '../../lib/supabase'
 
 const users = ref([])
-const rolesList = ref([]) // Daftar semua jenis role (admin, student, dll)
+const rolesList = ref([]) 
 const loading = ref(true)
 const searchQuery = ref('')
 
@@ -11,43 +11,56 @@ const searchQuery = ref('')
 const fetchUsersAndRoles = async () => {
   loading.value = true
   
-  // A. Ambil Profiles + Roles (Nested Join)
-  const { data: profilesData, error } = await supabase
-    .from('profiles')
-    .select(`
-      *,
-      user_roles (
-        roles ( id, name )
-      )
-    `)
-    .order('created_at', { ascending: false }) // User terbaru di atas
+  try {
+    // A. Ambil Profiles + Roles (Nested Join)
+    const { data: profilesData, error } = await supabase
+      .from('profiles')
+      .select(`
+        *,
+        user_roles (
+          roles ( id, name )
+        )
+      `)
+      .order('created_at', { ascending: false })
 
-  if (profilesData) {
-    // B. Ratakan struktur datanya biar gampang diloop di HTML
-    users.value = profilesData.map(user => ({
-      ...user,
-      // Mapping user_roles jadi array string simple: ['student', 'admin']
-      roles: user.user_roles.map(ur => ur.roles?.name).filter(Boolean) 
-    }))
+    if (error) throw error // Lempar error biar ketangkep catch
+
+    if (profilesData) {
+      console.log("Data Users Mentah:", profilesData) // Cek di Console Browser
+
+      // B. Ratakan struktur datanya
+      users.value = profilesData.map(user => ({
+        ...user,
+        // Mapping user_roles jadi array string simple
+        // Handle kalo user_roles null/undefined
+        roles: user.user_roles ? user.user_roles.map(ur => ur.roles?.name).filter(Boolean) : []
+      }))
+    }
+
+    // C. Ambil daftar Role master
+    const { data: allRoles } = await supabase.from('roles').select('*')
+    rolesList.value = allRoles
+
+  } catch (err) {
+    console.error("Error fetching users:", err.message)
+    alert("Gagal ambil data user: " + err.message)
+  } finally {
+    loading.value = false
   }
-
-  // C. Ambil daftar Role master buat dropdown/logika
-  const { data: allRoles } = await supabase.from('roles').select('*')
-  rolesList.value = allRoles
-  
-  loading.value = false
 }
 
-// 2. Filter Search (Client Side biar cepet)
+// 2. Filter Search
 const filteredUsers = computed(() => {
   if (!searchQuery.value) return users.value
+  const query = searchQuery.value.toLowerCase()
+  
   return users.value.filter(u => 
-    u.full_name.toLowerCase().includes(searchQuery.value.toLowerCase()) || 
-    u.email.toLowerCase().includes(searchQuery.value.toLowerCase())
+    (u.full_name && u.full_name.toLowerCase().includes(query)) || 
+    (u.email && u.email.toLowerCase().includes(query))
   )
 })
 
-// 3. Tambah Role Manual
+// 3. Tambah Role
 const addRole = async (user, roleName) => {
   if (!confirm(`Promote ${user.full_name} to ${roleName}?`)) return
   
@@ -55,16 +68,15 @@ const addRole = async (user, roleName) => {
   const { error } = await supabase.from('user_roles').insert({ user_id: user.id, role_id: roleId })
 
   if (error) alert(error.message)
-  else fetchUsersAndRoles() // Refresh table
+  else fetchUsersAndRoles()
 }
 
-// 4. Hapus Role Manual
+// 4. Hapus Role
 const removeRole = async (user, roleName) => {
   if (!confirm(`Remove ${roleName} access from ${user.full_name}?`)) return
 
   const roleId = rolesList.value.find(r => r.name === roleName)?.id
   
-  // Delete harus spesifik user_id DAN role_id
   const { error } = await supabase
     .from('user_roles')
     .delete()
