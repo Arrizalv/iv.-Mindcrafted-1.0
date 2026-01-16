@@ -48,20 +48,30 @@ const router = createRouter({
 })
 
 // Navigation Guard
-router.beforeEach(async (to, from, next) => {
+// PERBAIKAN 1: Ganti 'from' jadi '_from' karena tidak dipakai
+router.beforeEach(async (to, _from, next) => {
   const { data: { session } } = await supabase.auth.getSession()
 
   if (to.meta.requiresAuth && !session) return next('/auth')
   if ((to.path === '/auth' || to.path === '/') && session) return next('/dashboard')
 
-  if (to.meta.allowedRoles && session) {
+  // PERBAIKAN 2: Definisikan tipe untuk meta agar TypeScript tau ada 'allowedRoles'
+  // Kita casting to.meta menjadi tipe yang memiliki allowedRoles
+  const allowedRoles = to.meta.allowedRoles as string[] | undefined
+
+  if (allowedRoles && session) {
     const { data: userRolesData } = await supabase
       .from('user_roles')
       .select('roles(name)')
       .eq('user_id', session.user.id)
 
-    const userRoles = userRolesData ? userRolesData.map((r) => r.roles.name) : []
-    const hasPermission = to.meta.allowedRoles.some((role) => userRoles.includes(role))
+    // PERBAIKAN 3: Kasih tipe 'any' ke parameter 'r' biar TS ga bingung baca struktur join Supabase
+    const userRoles = userRolesData 
+      ? userRolesData.map((r: any) => r.roles?.name) 
+      : []
+
+    // PERBAIKAN 4: Kasih tipe string ke parameter 'role'
+    const hasPermission = allowedRoles.some((role: string) => userRoles.includes(role))
 
     if (!hasPermission) return next('/unauthorized') 
   }

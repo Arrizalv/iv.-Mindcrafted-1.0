@@ -1,19 +1,18 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { supabase } from '../../lib/supabase'
 
 const users = ref([])
-const rolesList = ref([])
+const rolesList = ref([]) // Daftar semua jenis role (admin, student, dll)
 const loading = ref(true)
+const searchQuery = ref('')
 
-// 1. Fetch Users & Roles
-const fetchData = async () => {
+// 1. Fetch Data User & Role Mereka
+const fetchUsersAndRoles = async () => {
   loading.value = true
   
-  // Ambil data profile + roles mereka
-  // Catatan: Query ini agak kompleks di Supabase Client, idealnya pake RPC function
-  // Tapi ini cara simpel pake join table
-  const { data: profiles, error } = await supabase
+  // A. Ambil Profiles + Roles (Nested Join)
+  const { data: profilesData, error } = await supabase
     .from('profiles')
     .select(`
       *,
@@ -21,132 +20,176 @@ const fetchData = async () => {
         roles ( id, name )
       )
     `)
-  
-  if (profiles) {
-    // Flatten data biar gampang dibaca UI
-    users.value = profiles.map(u => ({
-      ...u,
-      roles: u.user_roles.map(ur => ur.roles.name)
+    .order('created_at', { ascending: false }) // User terbaru di atas
+
+  if (profilesData) {
+    // B. Ratakan struktur datanya biar gampang diloop di HTML
+    users.value = profilesData.map(user => ({
+      ...user,
+      // Mapping user_roles jadi array string simple: ['student', 'admin']
+      roles: user.user_roles.map(ur => ur.roles?.name).filter(Boolean) 
     }))
   }
 
-  // Ambil list semua role yang tersedia buat dropdown
-  const { data: roles } = await supabase.from('roles').select('*')
-  rolesList.value = roles
+  // C. Ambil daftar Role master buat dropdown/logika
+  const { data: allRoles } = await supabase.from('roles').select('*')
+  rolesList.value = allRoles
   
   loading.value = false
 }
 
-// 2. Logic Add Role (Promote User)
-const addRole = async (userId, roleName) => {
-  if(!confirm(`Make this user a ${roleName}?`)) return
+// 2. Filter Search (Client Side biar cepet)
+const filteredUsers = computed(() => {
+  if (!searchQuery.value) return users.value
+  return users.value.filter(u => 
+    u.full_name.toLowerCase().includes(searchQuery.value.toLowerCase()) || 
+    u.email.toLowerCase().includes(searchQuery.value.toLowerCase())
+  )
+})
 
-  // Cari ID role berdasarkan nama
-  const roleId = rolesList.value.find(r => r.name === roleName)?.id
+// 3. Tambah Role Manual
+const addRole = async (user, roleName) => {
+  if (!confirm(`Promote ${user.full_name} to ${roleName}?`)) return
   
-  const { error } = await supabase.from('user_roles').insert({
-    user_id: userId,
-    role_id: roleId
-  })
+  const roleId = rolesList.value.find(r => r.name === roleName)?.id
+  const { error } = await supabase.from('user_roles').insert({ user_id: user.id, role_id: roleId })
 
   if (error) alert(error.message)
-  else fetchData() // Refresh data
+  else fetchUsersAndRoles() // Refresh table
 }
 
-// 3. Logic Remove Role (Demote User)
-const removeRole = async (userId, roleName) => {
-  if(!confirm(`Remove ${roleName} access from this user?`)) return
+// 4. Hapus Role Manual
+const removeRole = async (user, roleName) => {
+  if (!confirm(`Remove ${roleName} access from ${user.full_name}?`)) return
 
   const roleId = rolesList.value.find(r => r.name === roleName)?.id
   
+  // Delete harus spesifik user_id DAN role_id
   const { error } = await supabase
     .from('user_roles')
     .delete()
-    .eq('user_id', userId)
+    .eq('user_id', user.id)
     .eq('role_id', roleId)
 
   if (error) alert(error.message)
-  else fetchData()
+  else fetchUsersAndRoles()
 }
 
-onMounted(() => { fetchData() })
+onMounted(() => { fetchUsersAndRoles() })
 </script>
 
 <template>
   <div>
-    <div class="mb-8">
-      <h1 class="text-2xl font-bold text-slate-800">User Management</h1>
-      <p class="text-slate-500">Control access and roles across the platform</p>
+    <div class="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
+      <div>
+        <h1 class="text-2xl font-bold text-slate-800">User Management</h1>
+        <p class="text-slate-500">Manage access and roles for {{ users.length }} registered users.</p>
+      </div>
+      
+      <div class="relative w-full md:w-64">
+        <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+        <input 
+          v-model="searchQuery" 
+          type="text" 
+          placeholder="Search users..." 
+          class="w-full pl-9 pr-4 py-2 rounded-xl border border-slate-200 focus:border-[#00d4e3] focus:ring-2 focus:ring-cyan-100 outline-none text-sm"
+        >
+      </div>
     </div>
 
-    <div class="bg-white rounded-2xl shadow-sm overflow-hidden border border-slate-100">
-      <table class="w-full text-left border-collapse">
-        <thead class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider">
-          <tr>
-            <th class="p-5 font-bold">User</th>
-            <th class="p-5 font-bold">Current Roles</th>
-            <th class="p-5 font-bold text-right">Actions</th>
-          </tr>
-        </thead>
-        <tbody class="divide-y divide-slate-100 text-sm">
-          <tr v-if="loading">
-             <td colspan="3" class="p-5 text-center text-slate-400">Loading users...</td>
-          </tr>
-          <tr v-else v-for="user in users" :key="user.id" class="hover:bg-slate-50 transition">
-            <td class="p-5">
-              <div class="flex items-center gap-3">
-                <img :src="user.avatar_url" class="w-10 h-10 rounded-full bg-slate-200">
-                <div>
-                  <h4 class="font-bold text-slate-800">{{ user.full_name }}</h4>
-                  <p class="text-xs text-slate-400">ID: {{ user.id.substring(0,8) }}...</p>
-                </div>
-              </div>
-            </td>
-            <td class="p-5">
-              <div class="flex flex-wrap gap-2">
-                <span 
-                  v-for="role in user.roles" :key="role" 
-                  class="px-2.5 py-1 rounded-md text-xs font-bold uppercase"
-                  :class="{
-                    'bg-slate-200 text-slate-600': role === 'student',
-                    'bg-purple-100 text-purple-600': role === 'instructor',
-                    'bg-teal-100 text-teal-600': role === 'mentor',
-                    'bg-red-100 text-red-600': role === 'admin'
-                  }"
-                >
-                  {{ role }}
-                </span>
-              </div>
-            </td>
-            <td class="p-5 text-right">
-              <div class="flex justify-end gap-2">
-                <button 
-                  v-if="!user.roles.includes('instructor')"
-                  @click="addRole(user.id, 'instructor')"
-                  class="px-3 py-1.5 border border-purple-200 text-purple-600 rounded-lg text-xs font-semibold hover:bg-purple-50"
-                >
-                  + Instructor
-                </button>
-                <button 
-                  v-else
-                  @click="removeRole(user.id, 'instructor')"
-                  class="px-3 py-1.5 border border-red-200 text-red-600 rounded-lg text-xs font-semibold hover:bg-red-50"
-                >
-                  - Instructor
-                </button>
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse">
+          <thead class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider font-semibold border-b border-slate-100">
+            <tr>
+              <th class="p-5">User Profile</th>
+              <th class="p-5">Current Roles</th>
+              <th class="p-5 text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100 text-sm">
+            
+            <tr v-if="loading">
+              <td colspan="3" class="p-8 text-center text-slate-400 italic">Loading user database...</td>
+            </tr>
 
-                <button 
-                  v-if="!user.roles.includes('mentor')"
-                  @click="addRole(user.id, 'mentor')"
-                  class="px-3 py-1.5 border border-teal-200 text-teal-600 rounded-lg text-xs font-semibold hover:bg-teal-50"
-                >
-                  + Mentor
-                </button>
-              </div>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+            <tr v-else-if="filteredUsers.length === 0">
+              <td colspan="3" class="p-8 text-center text-slate-400">No users found.</td>
+            </tr>
+
+            <tr v-else v-for="user in filteredUsers" :key="user.id" class="hover:bg-slate-50 transition-colors group">
+              <td class="p-5">
+                <div class="flex items-center gap-3">
+                  <img :src="user.avatar_url || 'https://ui-avatars.com/api/?name=User'" class="w-10 h-10 rounded-full bg-slate-200 object-cover">
+                  <div>
+                    <h4 class="font-bold text-slate-800">{{ user.full_name }}</h4>
+                    <p class="text-xs text-slate-400 font-mono">{{ user.email }}</p>
+                    <p class="text-[10px] text-slate-300">ID: {{ user.id.slice(0,8) }}...</p>
+                  </div>
+                </div>
+              </td>
+
+              <td class="p-5">
+                <div class="flex flex-wrap gap-2">
+                  <span 
+                    v-for="role in user.roles" :key="role" 
+                    class="px-2.5 py-1 rounded-md text-[10px] font-bold uppercase border"
+                    :class="{
+                      'bg-slate-100 border-slate-200 text-slate-600': role === 'student',
+                      'bg-blue-50 border-blue-100 text-blue-600': role === 'instructor',
+                      'bg-purple-50 border-purple-100 text-purple-600': role === 'mentor',
+                      'bg-red-50 border-red-100 text-red-600': role === 'admin'
+                    }"
+                  >
+                    {{ role }}
+                  </span>
+                </div>
+              </td>
+
+              <td class="p-5 text-right">
+                <div class="flex justify-end gap-2 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
+                  
+                  <button 
+                    v-if="!user.roles.includes('instructor')"
+                    @click="addRole(user, 'instructor')"
+                    class="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white transition flex items-center justify-center"
+                    title="Promote to Instructor"
+                  >
+                    <i class="fa-solid fa-chalkboard-user"></i>
+                  </button>
+                  <button 
+                    v-else
+                    @click="removeRole(user, 'instructor')"
+                    class="w-8 h-8 rounded-lg bg-white border border-slate-200 text-slate-400 hover:border-red-500 hover:text-red-500 transition flex items-center justify-center"
+                    title="Remove Instructor"
+                  >
+                    <i class="fa-solid fa-ban"></i>
+                  </button>
+
+                  <button 
+                    v-if="!user.roles.includes('mentor')"
+                    @click="addRole(user, 'mentor')"
+                    class="w-8 h-8 rounded-lg bg-purple-50 text-purple-600 hover:bg-purple-600 hover:text-white transition flex items-center justify-center"
+                    title="Promote to Mentor"
+                  >
+                    <i class="fa-solid fa-video"></i>
+                  </button>
+                  <button 
+                    v-else
+                    @click="removeRole(user, 'mentor')"
+                    class="w-8 h-8 rounded-lg bg-white border border-slate-200 text-slate-400 hover:border-red-500 hover:text-red-500 transition flex items-center justify-center"
+                    title="Remove Mentor"
+                  >
+                    <i class="fa-solid fa-ban"></i>
+                  </button>
+
+                </div>
+              </td>
+            </tr>
+
+          </tbody>
+        </table>
+      </div>
     </div>
   </div>
 </template>
