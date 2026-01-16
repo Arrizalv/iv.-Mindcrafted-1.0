@@ -17,6 +17,7 @@ const learnerMenu = [
   { path: '/courses', name: 'Explore Courses', icon: 'fa-book-open' },
   { path: '/marketplace', name: 'Marketplace', icon: 'fa-store' },
   { path: '/mentoring', name: 'Find Mentor', icon: 'fa-video' },
+  { path: '/community', name: 'Community', icon: 'fa-users' },
 ]
 
 // Menu buat Creator (Instructor/Mentor)
@@ -83,10 +84,8 @@ const handleLogout = async () => {
       </ul>
     </nav>
     
-    <nav class="flex-1 overflow-y-auto">
-      <ul class="space-y-2">
-         </ul>
-
+    <nav class="overflow-y-auto">
+   
       <div v-if="!isExpert" class="mt-8 px-5">
         <div class="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl p-4 text-center relative overflow-hidden group">
           <div class="relative z-10">
