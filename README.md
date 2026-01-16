@@ -54,20 +54,9 @@ Untuk menjalankan proyek ini secara lokal, ikuti langkah-langkah berikut.
     ```
 
 3.  **Setup Environment Variables:**
-    - Buat salinan file `.env.example` dan beri nama `.env`.
-      ```sh
-      # Untuk Windows (Command Prompt)
-      copy .env.example .env
-
-      # Untuk Windows (PowerShell)
-      cp .env.example .env
-
-      # Untuk macOS / Linux
-      cp .env.example .env
-      ```
-    - Buka file `.env` yang baru dibuat.
+    - Buka file `./routes/index.ts` 
     - Dapatkan **Project URL** dan **anon Key** dari dashboard Supabase Anda (Settings > API).
-    - Ganti placeholder di dalam file `.env` dengan kredensial Supabase Anda.
+    - Ganti placeholder di dalam file `./routes/index.ts` dengan kredensial Supabase Anda.
       ```env
       # Supabase Credentials
       # Dapatkan dari dashboard proyek Supabase Anda
