@@ -5,17 +5,23 @@ import { supabase } from '../../lib/supabase'
 const applications = ref([])
 const loading = ref(true)
 
-// 1. Fetch Data Lamaran (Join dengan Profile biar ada Nama & Foto)
 const fetchApplications = async () => {
   loading.value = true
+  
+  // Kita tambahkan inner join (!inner) biar data yang gak punya profile gak bikin error
+  // Tapi pakai left join (default) juga gapapa.
   const { data, error } = await supabase
     .from('role_applications')
     .select(`
       *,
       profiles ( full_name, avatar_url, email )
     `)
-    .eq('status', 'pending') // Cuma ambil yang belum diproses
+    .eq('status', 'pending')
     .order('created_at', { ascending: false })
+
+  if (error) {
+    console.error("Error fetching apps:", error) // Cek console browser kalau masih kosong!
+  }
 
   if (data) applications.value = data
   loading.value = false
