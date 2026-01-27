@@ -50,7 +50,7 @@ import { ref, nextTick, onMounted } from 'vue'
 import mermaid from 'mermaid'
 import html2canvas from 'html2canvas'
 import jsPDF from 'jspdf'
-import { supabase } from '@/lib/supabase' // Import dari struktur lib lu
+import { supabase } from '../lib/supabase' // Import dari struktur lib lu
 
 const topic = ref('')
 const loading = ref(false)
