@@ -10,6 +10,7 @@ import MarketplaceView from '../views/MarketplaceView.vue'
 import CommunityView from '../views/CommunityView.vue'
 import MentoringView from '../views/MentoringView.vue'
 import DiscussionView from '../views/DiscussionView.vue'
+import RoadmapView from '../views/RoadmapView.vue'
 
 // Lazy Load untuk halaman berat/admin
 const ManageCoursesView = () => import('../views/creator/ManageCoursesView.vue')
@@ -18,14 +19,42 @@ const UserManagementView = () => import('../views/admin/UserManagementView.vue')
 const UnauthorizedView = () => import('../views/UnauthorizedView.vue')
 const BecomeInstructorView = () => import('../views/BecomeInstructorView.vue')
 const AdminApplicationsView = () => import('../views/admin/AdminApplicationsView.vue')
+const AdminCoursesView = () => import('../views/admin/AdminCoursesView.vue')
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     { path: '/', name: 'landing', component: LandingPageView, meta: { layout: 'landing' } },
     { path: '/auth', name: 'auth', component: AuthView, meta: { layout: 'auth' } },
-    
+
+    // 1. Course Detail (Bisa diakses siapa aja)
+    { 
+      path: '/course/:id', 
+      name: 'course-detail', 
+      component: () => import('../views/CourseDetailView.vue'),
+      meta: { layout: 'app' } 
+    },
+
+    // 2. Edit Course (Khusus Instructor/Admin)
+    { 
+      path: '/instructor/course/:id/edit', 
+      name: 'edit-course', 
+      component: () => import('../views/creator/EditCourseView.vue'),
+      meta: { 
+        requiresAuth: true, 
+        layout: 'app', 
+        allowedRoles: ['instructor', 'admin'] 
+      } 
+    },
+    { 
+      path: '/admin/courses', 
+      name: 'admin-courses', 
+      component: AdminCoursesView, 
+      meta: { requiresAuth: true, layout: 'app', allowedRoles: ['admin'] } 
+    },
+        
     // Member Area
+    { path: '/roadmap', name: 'roadmap', component: RoadmapView, meta: { requiresAuth: true, layout: 'app' } },
     { path: '/dashboard', name: 'dashboard', component: DashboardView, meta: { requiresAuth: true, layout: 'app' } },
     { path: '/courses', name: 'courses', component: CoursesView, meta: { requiresAuth: true, layout: 'app' } },
     { path: '/marketplace', name: 'marketplace', component: MarketplaceView, meta: { requiresAuth: true, layout: 'app' } },
@@ -33,7 +62,7 @@ const router = createRouter({
     { path: '/mentoring', name: 'mentoring', component: MentoringView, meta: { requiresAuth: true, layout: 'app' } },
     { path: '/discussion', name: 'discussion', component: DiscussionView, meta: { requiresAuth: true, layout: 'app' } },
     { path: '/apply-instructor', name: 'apply-instructor', component: BecomeInstructorView, meta: { requiresAuth: true, layout: 'app' } },
-
+    
     // Creator Area
     { path: '/my-courses', name: 'manage-courses', component: ManageCoursesView, meta: { requiresAuth: true, layout: 'app', allowedRoles: ['instructor', 'admin'] } },
     { path: '/mentor-schedule', name: 'mentor-schedule', component: MentorScheduleView, meta: { requiresAuth: true, layout: 'app', allowedRoles: ['mentor', 'admin'] } },

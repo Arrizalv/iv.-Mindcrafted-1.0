@@ -1,9 +1,8 @@
 <script setup>
 import { computed } from 'vue'
-import { RouterLink } from 'vue-router'
+import { RouterLink, useRouter } from 'vue-router' // Update import ini
 import { useUser } from '../composables/useUser'
 import { supabase } from '../lib/supabase'
-import { useRouter } from 'vue-router'
 
 const router = useRouter()
 const { userProfile, userRoles, currentMode, toggleMode, hasRole } = useUser()
@@ -11,9 +10,11 @@ const { userProfile, userRoles, currentMode, toggleMode, hasRole } = useUser()
 // Cek status expert
 const isExpert = computed(() => hasRole('instructor') || hasRole('mentor'))
 
-// Menu buat Student
+// Menu buat Student (LEARNER)
 const learnerMenu = [
   { path: '/dashboard', name: 'Dashboard', icon: 'fa-grid-2' },
+  // 👇 TAMBAHAN BARU DI SINI
+  { path: '/roadmap', name: 'AI Roadmap', icon: 'fa-wand-magic-sparkles' }, 
   { path: '/courses', name: 'Explore Courses', icon: 'fa-book-open' },
   { path: '/marketplace', name: 'Marketplace', icon: 'fa-store' },
   { path: '/mentoring', name: 'Find Mentor', icon: 'fa-video' },
@@ -49,6 +50,8 @@ const handleLogout = async () => {
       <span>MINDCRAFTED</span>
     </div>
 
+
+    
     <div v-if="isCreator" class="bg-[#151635] p-1 rounded-lg flex text-xs mb-6 mx-2 border border-white/5">
       <button 
         @click="currentMode = 'learner'"

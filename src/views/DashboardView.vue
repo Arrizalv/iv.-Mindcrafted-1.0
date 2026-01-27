@@ -80,7 +80,7 @@ onMounted(() => {
     <div v-if="hasRole('admin')" class="mb-10">
       <h2 class="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4">Admin Control Center</h2>
       
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div 
           @click="router.push('/admin/applications')"
           class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 cursor-pointer group hover:shadow-md hover:border-[#00d4e3] transition-all relative overflow-hidden"
@@ -116,6 +116,21 @@ onMounted(() => {
               <p class="text-sm text-slate-500 mt-1">Manage roles & users.</p>
             </div>
           </div>
+        </div>
+        <div 
+          @click="router.push('/admin/courses')"
+          class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 cursor-pointer group hover:shadow-md hover:border-orange-400 transition-all relative overflow-hidden"
+        >
+          <div class="flex items-start justify-between relative z-10">
+            <div>
+              <div class="w-12 h-12 bg-orange-50 text-orange-600 rounded-xl flex items-center justify-center text-xl mb-4 group-hover:scale-110 transition-transform">
+                <i class="fa-solid fa-layer-group"></i>
+              </div>
+              <h3 class="font-bold text-lg text-slate-800 group-hover:text-orange-600 transition-colors">Course Manager</h3>
+              <p class="text-sm text-slate-500 mt-1">Moderate content & quality.</p>
+            </div>
+          </div>
+          <div class="absolute -right-6 -bottom-6 w-24 h-24 bg-orange-50 rounded-full group-hover:scale-150 transition-transform duration-500"></div>
         </div>
       </div>
     </div>

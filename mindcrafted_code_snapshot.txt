@@ -1,0 +1,2019 @@
+--- FILE: src/views/AuthView.vue ---
+
+<script setup>
+import { ref } from 'vue'
+import { supabase } from '../lib/supabase'
+import { useRouter } from 'vue-router'
+
+const router = useRouter()
+const isLogin = ref(true) // Toggle antara Login dan Register
+const loading = ref(false)
+const email = ref('')
+const password = ref('')
+const fullName = ref('') // Khusus Register
+
+const handleAuth = async () => {
+  loading.value = true
+  
+  if (isLogin.value) {
+    // --- LOGIKA LOGIN ---
+    const { error } = await supabase.auth.signInWithPassword({
+      email: email.value,
+      password: password.value
+    })
+    
+    if (error) {
+      alert(error.message)
+    } else {
+      router.push('/dashboard') // Sukses login, masuk dashboard
+    }
+
+  } else {
+    // --- LOGIKA SIGN UP ---
+    const { error } = await supabase.auth.signUp({
+      email: email.value,
+      password: password.value,
+      options: {
+        // Data ini akan ditangkap oleh Trigger SQL 'handle_new_user' yang kita buat sebelumnya
+        data: {
+          full_name: fullName.value,
+          avatar_url: `https://ui-avatars.com/api/?name=${fullName.value}&background=00d4e3&color=fff`
+        }
+      }
+    })
+
+    if (error) {
+      alert(error.message)
+    } else {
+      alert('Registration successful! Please check your email to confirm.')
+      isLogin.value = true // Kembali ke mode login
+    }
+  }
+  
+  loading.value = false
+}
+</script>
+
+<template>
+  <div class="min-h-screen bg-[#1a1b41] flex items-center justify-center p-4">
+    <div class="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden flex flex-col">
+      
+      <div class="bg-[#151635] p-8 text-center">
+        <RouterLink to="/" class="flex items-center justify-center gap-3 text-2xl font-bold mb-2 text-white hover:text-[#00d4e3] transition-colors cursor-pointer" title="Back to Home">
+          <i class="fa-solid fa-shapes text-[#00d4e3] text-3xl group-hover:rotate-12 transition-transform"></i>
+          <span>MINDCRAFTED</span>
+        </RouterLink>
+        <p class="text-slate-400 text-sm">Elevate your skills to the next level</p>
+      </div>
+
+      <div class="p-8">
+        <h2 class="text-xl font-bold text-slate-800 mb-6 text-center">
+          {{ isLogin ? 'Welcome Back!' : 'Create Account' }}
+        </h2>
+
+        <form @submit.prevent="handleAuth" class="space-y-4">
+          
+          <div v-if="!isLogin">
+            <label class="block text-xs font-bold text-slate-500 mb-1">FULL NAME</label>
+            <input v-model="fullName" type="text" required class="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-[#00d4e3] text-sm">
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-slate-500 mb-1">EMAIL ADDRESS</label>
+            <input v-model="email" type="email" required class="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-[#00d4e3] text-sm">
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-slate-500 mb-1">PASSWORD</label>
+            <input v-model="password" type="password" required class="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-[#00d4e3] text-sm">
+          </div>
+
+          <button :disabled="loading" class="w-full bg-[#00d4e3] text-[#1a1b41] font-bold py-3 rounded-lg hover:opacity-90 transition mt-4">
+            {{ loading ? 'Processing...' : (isLogin ? 'Sign In' : 'Sign Up') }}
+          </button>
+        </form>
+
+        <div class="mt-6 text-center text-sm text-slate-500">
+          {{ isLogin ? "Don't have an account?" : "Already have an account?" }}
+          <button @click="isLogin = !isLogin" class="text-[#1a1b41] font-bold hover:underline ml-1">
+            {{ isLogin ? 'Sign Up' : 'Sign In' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+--- END OF FILE ---
+
+--- FILE: src/views/BecomeInstructorView.vue ---
+
+<script setup>
+import { ref, onMounted } from 'vue'
+import { supabase } from '../lib/supabase'
+import { useRouter } from 'vue-router'
+
+const router = useRouter()
+const loading = ref(false)
+const existingApplication = ref(null)
+
+// Form Data
+const formData = ref({
+  role: 'instructor', // Default
+  portfolio: '',
+  bio: ''
+})
+
+// Cek apakah user udah pernah nglamar
+const checkStatus = async () => {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return
+
+  const { data } = await supabase
+    .from('role_applications')
+    .select('*')
+    .eq('user_id', user.id)
+    .eq('status', 'pending') // Cek yg masih pending aja
+    .single()
+  
+  if (data) existingApplication.value = data
+}
+
+// Submit Lamaran
+const submitApplication = async () => {
+  loading.value = true
+  const { data: { user } } = await supabase.auth.getUser()
+
+  const { error } = await supabase.from('role_applications').insert({
+    user_id: user.id,
+    requested_role: formData.value.role,
+    portfolio_url: formData.value.portfolio,
+    bio: formData.value.bio
+  })
+
+  if (error) {
+    alert('Error: ' + error.message)
+  } else {
+    alert('Application submitted! Please wait for admin approval.')
+    checkStatus() // Refresh status
+  }
+  loading.value = false
+}
+
+onMounted(() => { checkStatus() })
+</script>
+
+<template>
+  <div class="max-w-2xl mx-auto py-10">
+    <div class="text-center mb-10">
+      <h1 class="text-3xl font-bold text-slate-800">Join Our Expert Team</h1>
+      <p class="text-slate-500">Share your knowledge and earn money by teaching.</p>
+    </div>
+
+    <div v-if="existingApplication" class="bg-blue-50 border border-blue-200 rounded-2xl p-8 text-center">
+      <div class="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse">
+        <i class="fa-solid fa-hourglass-half text-2xl"></i>
+      </div>
+      <h3 class="font-bold text-slate-800 text-lg">Application Under Review</h3>
+      <p class="text-slate-600 mt-2">
+        You have applied to become a <strong>{{ existingApplication.requested_role }}</strong>. 
+        <br>We will review your portfolio and get back to you soon.
+      </p>
+    </div>
+
+    <div v-else class="bg-white p-8 rounded-2xl shadow-sm border border-slate-100">
+      <form @submit.prevent="submitApplication" class="space-y-6">
+        
+        <div>
+          <label class="block text-sm font-bold text-slate-700 mb-2">I want to apply as:</label>
+          <div class="flex gap-4">
+            <label class="flex-1 cursor-pointer">
+              <input type="radio" v-model="formData.role" value="instructor" class="peer hidden">
+              <div class="border-2 border-slate-200 peer-checked:border-[#00d4e3] peer-checked:bg-cyan-50 rounded-xl p-4 text-center transition-all">
+                <i class="fa-solid fa-chalkboard-user text-xl mb-2 block"></i>
+                <span class="font-bold">Instructor</span>
+                <p class="text-xs text-slate-500 mt-1">Create courses & curriculum</p>
+              </div>
+            </label>
+            <label class="flex-1 cursor-pointer">
+              <input type="radio" v-model="formData.role" value="mentor" class="peer hidden">
+              <div class="border-2 border-slate-200 peer-checked:border-[#00d4e3] peer-checked:bg-cyan-50 rounded-xl p-4 text-center transition-all">
+                <i class="fa-solid fa-video text-xl mb-2 block"></i>
+                <span class="font-bold">Mentor</span>
+                <p class="text-xs text-slate-500 mt-1">Live 1-on-1 sessions</p>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-sm font-bold text-slate-700 mb-2">Portfolio / LinkedIn URL</label>
+          <input v-model="formData.portfolio" type="url" required placeholder="https://linkedin.com/in/..." class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-[#00d4e3] outline-none">
+        </div>
+
+        <div>
+          <label class="block text-sm font-bold text-slate-700 mb-2">Why should we accept you?</label>
+          <textarea v-model="formData.bio" required rows="4" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-[#00d4e3] outline-none" placeholder="Tell us about your experience..."></textarea>
+        </div>
+
+        <button :disabled="loading" class="w-full bg-[#1a1b41] text-white font-bold py-4 rounded-xl hover:opacity-90 transition">
+          {{ loading ? 'Submitting...' : 'Submit Application' }}
+        </button>
+
+      </form>
+    </div>
+  </div>
+</template>
+
+--- END OF FILE ---
+
+--- FILE: src/views/CommunityView.vue ---
+
+<template>
+  <div>
+    <div class="mb-6">
+      <h1 class="text-2xl font-bold text-slate-800">Learning Community</h1>
+      <p class="text-slate-500">Connect, share, and learn together</p>
+    </div>
+
+    <div class="flex flex-col lg:flex-row gap-8">
+      <div class="flex-1 space-y-6">
+        <div class="bg-white p-5 rounded-2xl shadow-sm">
+          <div class="flex gap-4">
+            <div class="w-10 h-10 bg-brand-dark text-white rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0">XV</div>
+            <div class="flex-1">
+              <textarea placeholder="Share your thoughts, questions, or achievements..." class="w-full border-none resize-none focus:ring-0 text-sm h-12 outline-none"></textarea>
+              <div class="flex justify-between items-center mt-2 pt-2 border-t border-slate-100">
+                <div class="flex gap-2">
+                  <button class="text-xs bg-slate-100 px-3 py-1.5 rounded-full hover:bg-slate-200">Add Tags</button>
+                  <button class="text-xs bg-slate-100 px-3 py-1.5 rounded-full hover:bg-slate-200">Add Media</button>
+                </div>
+                <button class="bg-brand-dark text-white text-xs font-semibold px-4 py-2 rounded-lg hover:opacity-90">Post</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex gap-2 overflow-x-auto pb-1">
+          <button class="bg-slate-200 text-slate-700 px-4 py-1.5 rounded-full text-xs font-semibold">All Posts</button>
+          <button class="bg-white border border-slate-200 text-slate-500 px-4 py-1.5 rounded-full text-xs hover:bg-slate-50">Trending</button>
+          <button class="bg-white border border-slate-200 text-slate-500 px-4 py-1.5 rounded-full text-xs hover:bg-slate-50">Following</button>
+        </div>
+
+        <div v-for="post in posts" :key="post.id" class="bg-white p-5 rounded-2xl shadow-sm">
+          <div class="flex justify-between items-start mb-3">
+            <div class="flex gap-3">
+              <div class="w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm text-white" :class="post.avatarColor">
+                {{ post.initials }}
+              </div>
+              <div>
+                <h4 class="text-sm font-bold flex items-center gap-2">
+                  {{ post.author }} 
+                  <span v-if="post.isTrending" class="bg-brand-accent text-white text-[9px] px-1.5 py-0.5 rounded">Trending</span>
+                </h4>
+                <p class="text-xs text-slate-500">{{ post.role }} • {{ post.time }}</p>
+              </div>
+            </div>
+            <i class="fa-solid fa-ellipsis text-slate-400 cursor-pointer"></i>
+          </div>
+          <p class="text-sm text-slate-700 mb-3 leading-relaxed">
+            {{ post.content }}
+          </p>
+          <div class="flex gap-2 mb-4">
+            <span 
+              v-for="tag in post.tags" 
+              :key="tag" 
+              class="text-[10px] px-2 py-1 rounded font-medium"
+              :class="post.tagStyle"
+            >
+              #{{ tag }}
+            </span>
+          </div>
+          <div class="flex items-center gap-6 text-slate-500 text-xs border-t border-slate-100 pt-3">
+            <span class="cursor-pointer hover:text-red-500"><i class="fa-regular fa-heart mr-1"></i> {{ post.likes }}</span>
+            <span class="cursor-pointer hover:text-blue-500"><i class="fa-regular fa-comment mr-1"></i> {{ post.comments }}</span>
+            <span class="cursor-pointer hover:text-brand-dark"><i class="fa-solid fa-share-nodes mr-1"></i> Share</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="w-full lg:w-72 flex-shrink-0 space-y-6">
+        <div class="bg-white p-5 rounded-2xl shadow-sm">
+          <div class="relative mb-4">
+             <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+             <input type="text" placeholder="Search community..." class="w-full pl-8 pr-3 py-2 bg-slate-50 border-none rounded-lg text-xs focus:ring-1 focus:ring-brand-accent outline-none">
+          </div>
+          <h3 class="font-bold text-sm mb-4">Trending Topics</h3>
+          <div class="space-y-4">
+            <div v-for="topic in trendingTopics" :key="topic.name" class="flex justify-between items-center cursor-pointer group">
+              <div>
+                <p class="text-xs font-semibold group-hover:text-brand-accent">{{ topic.name }}</p>
+                <p class="text-[10px] text-slate-500">{{ topic.posts }} posts</p>
+              </div>
+              <i class="fa-solid fa-arrow-trend-up text-brand-accent text-xs"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref } from 'vue'
+
+const trendingTopics = ref([
+  { name: '#React 19', posts: '1,234' },
+  { name: '#AI & Machine Learning', posts: '2,341' },
+  { name: '#Career Growth', posts: '987' }
+])
+
+const posts = ref([
+  {
+    id: 1,
+    initials: 'SJ',
+    avatarColor: 'bg-indigo-500',
+    author: 'Sarah Johnson',
+    role: 'Senior Full Stack Developer',
+    time: '2 hours ago',
+    isTrending: true,
+    content: 'Just finished implementing a custom authentication system using JWT tokens and refresh token rotation. The security improvements are significant! Here are some key takeaways... 🔐',
+    tags: ['Authentication', 'Security', 'JavaScript'],
+    tagStyle: 'bg-indigo-50 text-indigo-700',
+    likes: 45,
+    comments: 12
+  },
+  {
+    id: 2,
+    initials: 'MC',
+    avatarColor: 'bg-purple-500',
+    author: 'Michael Chen',
+    role: 'UI/UX Designer',
+    time: '4 hours ago',
+    isTrending: false,
+    content: "What are your thoughts on the new design trends for 2026? I've been seeing a lot of glassmorphism and neomorphism combinations. Would love to hear the community's perspective! 🎨",
+    tags: ['Design', 'UIUX', 'Trends'],
+    tagStyle: 'bg-purple-50 text-purple-700',
+    likes: 78,
+    comments: 34
+  }
+])
+</script>
+
+--- END OF FILE ---
+
+--- FILE: src/views/CoursesView.vue ---
+
+<script setup>
+import { ref, computed, onMounted } from 'vue'
+import { supabase } from '../lib/supabase'
+
+// State
+const courses = ref([])
+const loading = ref(true)
+const searchQuery = ref('')
+const selectedCategory = ref('All')
+const selectedLevel = ref('All')
+
+// Options untuk Filter
+const categories = ['All', 'Development', 'Design', 'Business', 'Marketing']
+const levels = ['All', 'Beginner', 'Intermediate', 'Advanced']
+
+// 1. Fetch Data dari Supabase
+const fetchCourses = async () => {
+  loading.value = true
+  try {
+    const { data, error } = await supabase
+      .from('courses')
+      .select('*')
+      .eq('is_published', true)
+      .order('created_at', { ascending: false })
+    
+    if (error) throw error
+    courses.value = data
+  } catch (error) {
+    console.error('Error fetching courses:', error)
+  } finally {
+    loading.value = false
+  }
+}
+
+// 2. Logic Filtering (Search + Category + Level)
+const filteredCourses = computed(() => {
+  return courses.value.filter(course => {
+    const matchTitle = course.title.toLowerCase().includes(searchQuery.value.toLowerCase())
+    const matchCategory = selectedCategory.value === 'All' || course.category === selectedCategory.value
+    const matchLevel = selectedLevel.value === 'All' || course.level === selectedLevel.value
+    
+    return matchTitle && matchCategory && matchLevel
+  })
+})
+
+// Helper: Format Harga
+const formatCurrency = (price) => {
+  if (price === 0) return 'Free'
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(price)
+}
+
+// Helper: Format Angka (misal 1200 jadi 1.2k)
+const formatNumber = (num) => {
+  if (num >= 1000) return (num / 1000).toFixed(1) + 'k'
+  return num
+}
+
+onMounted(() => {
+  fetchCourses()
+})
+</script>
+
+<template>
+  <div>
+    <div class="mb-8">
+      <h1 class="text-3xl font-bold text-slate-800 mb-2">Explore Courses</h1>
+      <p class="text-slate-500">Upgrade skill kamu dengan materi terbaik dari para ahli.</p>
+    </div>
+
+    <div class="bg-white p-4 rounded-2xl shadow-sm mb-8 flex flex-col md:flex-row gap-4 justify-between items-center sticky top-4 z-10 border border-slate-100">
+      
+      <div class="relative w-full md:w-96">
+        <i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
+        <input 
+          v-model="searchQuery" 
+          type="text" 
+          placeholder="Cari materi apa hari ini?" 
+          class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-[#00d4e3] focus:border-transparent outline-none transition-all"
+        >
+      </div>
+
+      <div class="flex items-center gap-3 w-full md:w-auto overflow-x-auto pb-1 md:pb-0">
+        <select v-model="selectedLevel" class="px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-sm font-medium text-slate-600 focus:ring-2 focus:ring-[#00d4e3] outline-none cursor-pointer">
+          <option v-for="level in levels" :key="level" :value="level">{{ level === 'All' ? 'All Levels' : level }}</option>
+        </select>
+
+        <div class="flex gap-2">
+           <button 
+            v-for="cat in categories" 
+            :key="cat"
+            @click="selectedCategory = cat"
+            class="px-4 py-2 rounded-full text-xs font-bold transition-all whitespace-nowrap"
+            :class="selectedCategory === cat 
+              ? 'bg-[#1a1b41] text-white shadow-lg shadow-indigo-500/30' 
+              : 'bg-slate-100 text-slate-500 hover:bg-slate-200'"
+          >
+            {{ cat }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="loading" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div v-for="n in 6" :key="n" class="bg-white rounded-2xl shadow-sm p-4 animate-pulse">
+        <div class="h-48 bg-slate-200 rounded-xl mb-4"></div>
+        <div class="h-6 bg-slate-200 rounded w-3/4 mb-3"></div>
+        <div class="h-4 bg-slate-200 rounded w-1/2 mb-6"></div>
+        <div class="flex justify-between mt-auto">
+           <div class="h-8 w-20 bg-slate-200 rounded"></div>
+           <div class="h-8 w-20 bg-slate-200 rounded"></div>
+        </div>
+      </div>
+    </div>
+
+    <div v-else-if="filteredCourses.length === 0" class="text-center py-20">
+      <div class="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+        <i class="fa-solid fa-box-open text-3xl text-slate-400"></i>
+      </div>
+      <h3 class="text-lg font-bold text-slate-700">Tidak ada kursus ditemukan</h3>
+      <p class="text-slate-500 text-sm">Coba ubah kata kunci pencarian atau filter kamu.</p>
+      <button @click="selectedCategory = 'All'; searchQuery = ''" class="mt-4 text-[#00d4e3] font-semibold hover:underline">Reset Filter</button>
+    </div>
+
+    <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div 
+        v-for="course in filteredCourses" 
+        :key="course.id" 
+        class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden group hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col"
+      >
+        <div class="relative h-48 overflow-hidden">
+          <img :src="course.image_url" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500">
+          <div class="absolute top-3 left-3 flex gap-2">
+            <span class="bg-white/90 backdrop-blur-sm text-slate-800 text-[10px] font-bold px-2.5 py-1 rounded-md shadow-sm uppercase tracking-wide">
+              {{ course.category }}
+            </span>
+          </div>
+          <div class="absolute top-3 right-3">
+             <span class="bg-[#1a1b41]/90 text-white text-[10px] font-bold px-2.5 py-1 rounded-md shadow-sm">
+              {{ course.level }}
+            </span>
+          </div>
+        </div>
+        
+        <div class="p-5 flex flex-col flex-1">
+          <div class="flex justify-between items-start mb-2">
+            <h3 class="font-bold text-lg text-slate-800 leading-snug line-clamp-2 group-hover:text-[#00d4e3] transition-colors">
+              {{ course.title }}
+            </h3>
+          </div>
+          
+          <p class="text-xs text-slate-500 mb-4 line-clamp-2">{{ course.description || 'No description provided.' }}</p>
+
+          <div class="flex items-center gap-4 text-xs text-slate-500 mb-4 pb-4 border-b border-slate-100">
+            <div class="flex items-center gap-1">
+               <i class="fa-solid fa-chalkboard-user text-[#00d4e3]"></i>
+               <span class="font-medium text-slate-700">{{ course.instructor_name }}</span>
+            </div>
+            <div class="flex items-center gap-1">
+               <i class="fa-solid fa-star text-amber-400"></i>
+               <span class="font-bold text-slate-800">{{ course.rating }}</span>
+            </div>
+            <div class="flex items-center gap-1 ml-auto">
+               <i class="fa-solid fa-users text-slate-400"></i>
+               <span>{{ formatNumber(course.total_students) }}</span>
+            </div>
+          </div>
+
+          <div class="mt-auto flex justify-between items-center">
+            <div>
+              <p class="text-[10px] text-slate-400 font-semibold uppercase">Price</p>
+              <span class="text-xl font-bold text-[#1a1b41]">{{ formatCurrency(course.price) }}</span>
+            </div>
+            <button class="bg-[#1a1b41] text-white px-5 py-2.5 rounded-xl text-sm font-semibold shadow-lg shadow-indigo-900/20 hover:bg-[#00d4e3] hover:text-[#1a1b41] transition-all flex items-center gap-2">
+              Enroll <i class="fa-solid fa-arrow-right"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+--- END OF FILE ---
+
+--- FILE: src/views/DashboardView.vue ---
+
+<script setup>
+import { ref, onMounted, computed } from 'vue'
+import { supabase } from '../lib/supabase'
+import { useRouter } from 'vue-router'
+import { useUser } from '../composables/useUser'
+
+// 1. Setup Composable & Router
+const router = useRouter()
+const { userRoles, hasRole } = useUser() // Ambil fungsi hasRole dari sini
+
+// 2. State Data
+const myCourses = ref([])
+const userStats = ref({}) // Data profil user
+const pendingCount = ref(0) // Data notifikasi admin
+
+// Data Dummy Statistik (Biar grid stats ngga error)
+const stats = ref([
+  { title: 'Courses Completed', count: '12', icon: 'fa-trophy', change: '+2 this month' },
+  { title: 'Learning Hours', count: '48.5', icon: 'fa-clock', change: '+12% vs last month' },
+  { title: 'Points Earned', count: '1,250', icon: 'fa-medal', change: 'Top 5% student' },
+  { title: 'Skills Mastered', count: '8', icon: 'fa-brain', change: 'New: React.js' }
+])
+
+// 3. Computed Property (Harus di luar function biar reaktif)
+const isExpert = computed(() => {
+  return hasRole('instructor') || hasRole('mentor') || hasRole('admin')
+})
+
+// 4. Fetch Data Utama
+async function fetchDashboardData() {
+  const { data: { user } } = await supabase.auth.getUser()
+  
+  if (user) {
+    // Ambil Profil User
+    const { data: profile } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single()
+    userStats.value = profile
+
+    // Ambil Course yang sedang dipelajari
+    const { data: enrollments } = await supabase
+        .from('enrollments')
+        .select(`
+            progress_percent,
+            courses ( title, instructor_name, image_url )
+        `)
+        .eq('user_id', user.id)
+    
+    if (enrollments) myCourses.value = enrollments
+  }
+}
+
+// 5. Fetch Data Khusus Admin (Hitung lamaran pending)
+const fetchAdminStats = async () => {
+  if (hasRole('admin')) {
+    const { count, error } = await supabase
+      .from('role_applications')
+      .select('*', { count: 'exact', head: true }) 
+      .eq('status', 'pending')
+    
+    if (!error) pendingCount.value = count || 0
+  }
+}
+
+onMounted(() => {
+  fetchDashboardData()
+  fetchAdminStats()
+})
+</script>
+
+<template>
+  <div>
+    <div class="mb-8">
+      <h1 class="text-2xl font-bold text-slate-800">Welcome back, {{ userStats?.full_name || 'User' }} 👋</h1>
+      <p class="text-slate-500">Here's what's happening with your platform.</p>
+    </div>
+
+    <div v-if="hasRole('admin')" class="mb-10">
+      <h2 class="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4">Admin Control Center</h2>
+      
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div 
+          @click="router.push('/admin/applications')"
+          class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 cursor-pointer group hover:shadow-md hover:border-[#00d4e3] transition-all relative overflow-hidden"
+        >
+          <div class="flex items-start justify-between relative z-10">
+            <div>
+              <div class="w-12 h-12 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center text-xl mb-4 group-hover:scale-110 transition-transform">
+                <i class="fa-solid fa-file-signature"></i>
+              </div>
+              <h3 class="font-bold text-lg text-slate-800 group-hover:text-blue-600 transition-colors">Instructor Applications</h3>
+              <p class="text-sm text-slate-500 mt-1">Review pending requests.</p>
+            </div>
+            
+            <div v-if="pendingCount > 0" class="bg-red-500 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg shadow-red-200 animate-bounce">
+              {{ pendingCount }} Pending
+            </div>
+            <div v-else class="bg-green-100 text-green-600 text-xs font-bold px-3 py-1.5 rounded-full">
+              All Clear
+            </div>
+          </div>
+        </div>
+
+        <div 
+          @click="router.push('/admin/users')"
+          class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 cursor-pointer group hover:shadow-md hover:border-purple-400 transition-all relative overflow-hidden"
+        >
+          <div class="flex items-start justify-between relative z-10">
+            <div>
+              <div class="w-12 h-12 bg-purple-50 text-purple-600 rounded-xl flex items-center justify-center text-xl mb-4 group-hover:scale-110 transition-transform">
+                <i class="fa-solid fa-users-gear"></i>
+              </div>
+              <h3 class="font-bold text-lg text-slate-800 group-hover:text-purple-600 transition-colors">User Management</h3>
+              <p class="text-sm text-slate-500 mt-1">Manage roles & users.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="!isExpert" class="mb-8 bg-gradient-to-r from-[#1a1b41] to-[#2d2e68] rounded-2xl p-6 md:p-8 relative overflow-hidden text-white shadow-lg">
+      <i class="fa-solid fa-shapes absolute -right-10 -bottom-10 text-9xl text-white/5 rotate-12"></i>
+      
+      <div class="relative z-10 flex flex-col md:flex-row items-center justify-between gap-6">
+        <div>
+          <span class="bg-[#00d4e3] text-[#1a1b41] text-[10px] font-bold px-2 py-1 rounded mb-3 inline-block">NEW OPPORTUNITY</span>
+          <h2 class="text-2xl font-bold mb-2">Share your knowledge & earn money</h2>
+          <p class="text-slate-300 text-sm max-w-lg">
+            Join our expert team of instructors and mentors. Create courses or provide 1-on-1 mentoring sessions.
+          </p>
+        </div>
+        <button 
+          @click="router.push('/apply-instructor')" 
+          class="bg-white text-[#1a1b41] px-6 py-3 rounded-xl font-bold hover:bg-[#00d4e3] hover:shadow-lg transition-all whitespace-nowrap"
+        >
+          Become an Instructor <i class="fa-solid fa-arrow-right ml-2"></i>
+        </button>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div v-for="(stat, index) in stats" :key="index" class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
+        <div class="flex justify-between text-slate-500 text-sm mb-4">
+          <span>{{ stat.title }}</span>
+          <i :class="`fa-solid ${stat.icon} text-[#00d4e3]`"></i>
+        </div>
+        <div class="text-3xl font-bold text-slate-800 mb-1">{{ stat.count }}</div>
+        <div class="text-xs text-green-500 font-medium">{{ stat.change }}</div>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+      <div class="lg:col-span-2 space-y-4">
+        <h2 class="text-lg font-bold text-slate-800">Active Courses</h2>
+        
+        <div v-if="myCourses.length === 0" class="bg-white p-8 rounded-2xl shadow-sm text-center text-slate-400">
+            <p>You haven't enrolled in any courses yet.</p>
+            <button @click="router.push('/courses')" class="text-[#00d4e3] font-bold mt-2 hover:underline">Explore Courses</button>
+        </div>
+
+        <div v-else v-for="course in myCourses" :key="course.id" class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
+          <div class="flex justify-between mb-2">
+            <h3 class="font-semibold text-slate-800">{{ course.courses.title }}</h3>
+            <span class="font-bold text-sm">{{ course.progress_percent }}%</span>
+          </div>
+          <div class="w-full bg-slate-200 rounded-full h-2 mb-4">
+            <div class="bg-[#1a1b41] h-2 rounded-full" :style="`width: ${course.progress_percent}%`"></div>
+          </div>
+          <div class="flex justify-between items-center text-sm">
+            <span class="text-slate-500">Instructor: {{ course.courses.instructor_name }}</span>
+            <a href="#" class="font-semibold flex items-center gap-2 hover:text-[#00d4e3]">Continue <i class="fa-solid fa-arrow-right"></i></a>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <h2 class="text-lg font-bold text-slate-800 mb-4">Upcoming Mentoring</h2>
+        <div class="bg-white p-5 rounded-2xl shadow-sm flex items-center justify-between border border-slate-100">
+          <div class="flex gap-3">
+            <div class="w-10 h-10 bg-slate-200 rounded-lg flex items-center justify-center font-bold text-slate-500">AT</div>
+            <div>
+              <h4 class="text-sm font-semibold">Alex Thompson</h4>
+              <p class="text-[10px] text-slate-500">Today, 3:00 PM</p>
+            </div>
+          </div>
+          <button class="bg-[#1a1b41] text-white px-3 py-1.5 rounded text-xs hover:bg-[#00d4e3] hover:text-[#1a1b41] transition">Join</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</template>
+
+--- END OF FILE ---
+
+--- FILE: src/views/DiscussionView.vue ---
+
+<script setup>
+import { ref } from 'vue'
+
+const activeTab = ref('active')
+const showRoom = ref(false)
+const roomTitle = ref('')
+
+const joinRoom = (title) => {
+  roomTitle.value = title
+  showRoom.value = true
+}
+</script>
+
+<template>
+  <div>
+    <div class="flex justify-between items-center mb-6">
+      <div>
+        <h1 class="text-2xl font-bold text-slate-800">Discussion Rooms</h1>
+        <p class="text-slate-500">Join live discussions with WebRTC</p>
+      </div>
+      <button class="bg-[#1a1b41] text-white px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 hover:opacity-90">
+        <i class="fa-solid fa-plus"></i> Create Room
+      </button>
+    </div>
+
+    <div class="flex gap-2 mb-8">
+      <button @click="activeTab = 'active'" :class="activeTab === 'active' ? 'bg-[#1a1b41] text-white' : 'bg-white text-slate-500'" class="px-4 py-2 rounded-lg text-sm font-semibold transition-all">Active Rooms</button>
+      <button @click="activeTab = 'scheduled'" :class="activeTab === 'scheduled' ? 'bg-[#1a1b41] text-white' : 'bg-white text-slate-500'" class="px-4 py-2 rounded-lg text-sm font-semibold transition-all">Scheduled</button>
+    </div>
+
+    <div v-if="activeTab === 'active'" class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+      <div class="bg-white p-6 rounded-2xl shadow-sm border-l-4 border-[#00d4e3]">
+        <div class="flex justify-between items-start mb-4">
+          <div>
+             <h3 class="font-bold text-lg text-slate-800 flex items-center gap-2">React Best Practices <i class="fa-solid fa-globe text-slate-400 text-xs"></i></h3>
+             <p class="text-sm text-slate-500">Frontend Development</p>
+          </div>
+          <span class="bg-green-500 text-white text-[10px] font-bold px-2 py-1 rounded animate-pulse">Live</span>
+        </div>
+        <div class="flex items-center gap-6 text-xs text-slate-500 mb-6">
+          <span><i class="fa-solid fa-users mr-1"></i> 18/30</span>
+          <span><i class="fa-regular fa-clock mr-1"></i> 30 mins ago</span>
+        </div>
+        <button @click="joinRoom('React Best Practices')" class="w-full bg-[#1a1b41] text-white py-2.5 rounded-lg text-sm font-semibold hover:opacity-90"><i class="fa-solid fa-video mr-2"></i> Join Room</button>
+      </div>
+    </div>
+
+    <div v-if="showRoom" class="fixed inset-0 bg-slate-100 z-[100] flex flex-col">
+      <div class="bg-white px-6 py-4 border-b border-slate-200 flex justify-between items-center shadow-sm">
+        <div class="flex items-center gap-3">
+          <i class="fa-solid fa-video text-[#00d4e3]"></i>
+          <div>
+            <h2 class="font-bold text-slate-800 text-sm">{{ roomTitle }}</h2>
+            <p class="text-xs text-slate-500">Hosted by Sarah Johnson</p>
+          </div>
+        </div>
+        <button @click="showRoom = false" class="bg-red-500 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-red-600 transition">
+          <i class="fa-solid fa-phone-slash mr-2"></i> Leave
+        </button>
+      </div>
+      
+      <div class="flex-1 p-4 flex flex-col gap-4">
+        <div class="flex-1 bg-slate-200 rounded-2xl flex items-center justify-center relative">
+           <div class="text-center">
+             <div class="w-24 h-24 bg-[#1a1b41] text-white rounded-full flex items-center justify-center text-3xl font-bold mx-auto mb-4">SJ</div>
+             <h3 class="font-semibold text-slate-700">Sarah Johnson</h3>
+             <span class="bg-[#00d4e3] text-white text-[10px] px-2 py-1 rounded-full mt-2 inline-block">Speaking</span>
+           </div>
+        </div>
+        
+        <div class="flex justify-center gap-4 mt-2">
+           <button class="w-12 h-12 rounded-full bg-[#1a1b41] text-white flex items-center justify-center"><i class="fa-solid fa-microphone"></i></button>
+           <button class="w-12 h-12 rounded-full bg-red-500 text-white flex items-center justify-center" @click="showRoom = false"><i class="fa-solid fa-phone"></i></button>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+--- END OF FILE ---
+
+--- FILE: src/views/LandingPageView.vue ---
+
+<script setup>
+import { ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
+import { supabase } from '../lib/supabase'
+
+const router = useRouter()
+const testimonials = ref([])
+
+onMounted(async () => {
+  const { data } = await supabase.from('testimonials').select('*')
+  if (data) testimonials.value = data
+})
+
+const goToLogin = () => router.push('/auth')
+</script>
+
+<template>
+  <div class="min-h-screen bg-white font-sans text-slate-800">
+    
+    <nav class="fixed top-0 w-full bg-white/80 backdrop-blur-md border-b border-slate-100 z-50">
+      <div class="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
+        <div class="flex items-center gap-3 text-2xl font-bold text-[#1a1b41]">
+          <i class="fa-solid fa-shapes text-[#00d4e3] text-3xl"></i>
+          <span>MINDCRAFTED</span>
+        </div>
+        
+        <div class="flex items-center gap-6">
+          <a href="#features" class="hidden md:block text-sm font-semibold text-slate-600 hover:text-[#00d4e3]">Features</a>
+          <a href="#pricing" class="hidden md:block text-sm font-semibold text-slate-600 hover:text-[#00d4e3]">Pricing</a>
+          <button @click="goToLogin" class="bg-[#1a1b41] text-white px-6 py-2.5 rounded-full text-sm font-bold hover:bg-[#00d4e3] hover:text-[#1a1b41] transition-all shadow-lg shadow-indigo-900/20">
+            Login / Sign Up
+          </button>
+        </div>
+      </div>
+    </nav>
+
+    <header class="pt-32 pb-20 px-6 text-center bg-gradient-to-b from-slate-50 to-white">
+      <div class="max-w-4xl mx-auto">
+        <span class="text-[#00d4e3] font-bold tracking-wider text-sm uppercase mb-4 block animate-pulse">#1 Learning Platform</span>
+        <h1 class="text-5xl md:text-7xl font-bold text-[#1a1b41] mb-6 leading-tight">
+          Master New Skills <br> <span class="text-transparent bg-clip-text bg-gradient-to-r from-[#00d4e3] to-blue-600">Build Your Future</span>
+        </h1>
+        <p class="text-lg text-slate-500 mb-10 max-w-2xl mx-auto">
+          Bergabunglah dengan komunitas belajar terbesar. Akses ribuan kursus, mentoring eksklusif, dan diskusi real-time dalam satu platform.
+        </p>
+        <div class="flex flex-col md:flex-row justify-center gap-4">
+          <button @click="goToLogin" class="bg-[#00d4e3] text-[#1a1b41] px-8 py-4 rounded-xl font-bold text-lg hover:shadow-xl hover:-translate-y-1 transition-all">
+            Get Started for Free
+          </button>
+          <button class="px-8 py-4 rounded-xl font-bold text-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-all flex items-center justify-center gap-2">
+            <i class="fa-solid fa-play"></i> Watch Demo
+          </button>
+        </div>
+      </div>
+      
+      <div class="max-w-5xl mx-auto mt-16 grid grid-cols-2 md:grid-cols-4 gap-8 border-t border-slate-200 pt-8">
+        <div><h3 class="text-3xl font-bold text-[#1a1b41]">10k+</h3><p class="text-slate-500 text-sm">Active Students</p></div>
+        <div><h3 class="text-3xl font-bold text-[#1a1b41]">500+</h3><p class="text-slate-500 text-sm">Expert Mentors</p></div>
+        <div><h3 class="text-3xl font-bold text-[#1a1b41]">1.2k</h3><p class="text-slate-500 text-sm">Courses</p></div>
+        <div><h3 class="text-3xl font-bold text-[#1a1b41]">4.9</h3><p class="text-slate-500 text-sm">User Rating</p></div>
+      </div>
+    </header>
+
+    <section id="features" class="py-20 px-6 bg-white">
+      <div class="max-w-7xl mx-auto">
+        <h2 class="text-3xl font-bold text-center text-[#1a1b41] mb-16">Why Choose Mindcrafted?</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div class="p-8 rounded-3xl bg-slate-50 hover:bg-white hover:shadow-xl transition-all border border-transparent hover:border-slate-100 group">
+            <div class="w-14 h-14 bg-blue-100 rounded-2xl flex items-center justify-center text-blue-600 text-2xl mb-6 group-hover:bg-blue-600 group-hover:text-white transition-colors">
+              <i class="fa-solid fa-graduation-cap"></i>
+            </div>
+            <h3 class="text-xl font-bold mb-3">Expert-Led Courses</h3>
+            <p class="text-slate-500 leading-relaxed">Belajar langsung dari praktisi industri top dunia dengan kurikulum yang terstruktur.</p>
+          </div>
+          <div class="p-8 rounded-3xl bg-slate-50 hover:bg-white hover:shadow-xl transition-all border border-transparent hover:border-slate-100 group">
+            <div class="w-14 h-14 bg-purple-100 rounded-2xl flex items-center justify-center text-purple-600 text-2xl mb-6 group-hover:bg-purple-600 group-hover:text-white transition-colors">
+              <i class="fa-solid fa-video"></i>
+            </div>
+            <h3 class="text-xl font-bold mb-3">1-on-1 Mentoring</h3>
+            <p class="text-slate-500 leading-relaxed">Booking sesi privat dengan mentor untuk review portofolio atau konsultasi karir.</p>
+          </div>
+          <div class="p-8 rounded-3xl bg-slate-50 hover:bg-white hover:shadow-xl transition-all border border-transparent hover:border-slate-100 group">
+            <div class="w-14 h-14 bg-teal-100 rounded-2xl flex items-center justify-center text-teal-600 text-2xl mb-6 group-hover:bg-teal-600 group-hover:text-white transition-colors">
+              <i class="fa-solid fa-users"></i>
+            </div>
+            <h3 class="text-xl font-bold mb-3">Community First</h3>
+            <p class="text-slate-500 leading-relaxed">Diskusi real-time, berbagi project, dan networking dengan sesama learner.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="py-20 px-6 bg-[#1a1b41] text-white">
+      <div class="max-w-7xl mx-auto">
+        <h2 class="text-3xl font-bold text-center mb-16">What Our Students Say</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div v-for="t in testimonials" :key="t.id" class="bg-white/10 p-6 rounded-2xl backdrop-blur-sm border border-white/10">
+            <div class="flex text-[#00d4e3] text-xs mb-4">
+              <i v-for="n in t.rating" :key="n" class="fa-solid fa-star"></i>
+            </div>
+            <p class="text-slate-300 text-sm mb-6 leading-relaxed">"{{ t.content }}"</p>
+            <div class="flex items-center gap-3">
+              <img :src="t.avatar_url" class="w-10 h-10 rounded-full border-2 border-[#00d4e3]">
+              <div>
+                <h4 class="font-bold text-sm">{{ t.name }}</h4>
+                <p class="text-xs text-slate-400">{{ t.role }} at {{ t.company }}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <footer class="py-10 text-center text-slate-500 text-sm border-t border-slate-100">
+      <p>&copy; 2026 Mindcrafted Platform. All rights reserved.</p>
+    </footer>
+  </div>
+</template>
+
+--- END OF FILE ---
+
+--- FILE: src/views/MarketplaceView.vue ---
+
+<template>
+  <div>
+    <div class="mb-6 flex justify-between items-end">
+      <div>
+        <h1 class="text-2xl font-bold text-slate-800">Skill Service Marketplace</h1>
+        <p class="text-slate-500">Find expert services for your projects</p>
+      </div>
+      <select class="bg-white border-slate-200 rounded-lg text-sm px-3 py-2 outline-none focus:ring-2 focus:ring-brand-accent">
+        <option>Most Relevant</option>
+        <option>Price: Low to High</option>
+        <option>Price: High to Low</option>
+      </select>
+    </div>
+
+    <div class="flex flex-col lg:flex-row gap-8">
+      <div class="w-full lg:w-64 flex-shrink-0 space-y-6">
+        <div>
+          <h3 class="font-semibold text-sm mb-2">Search Services</h3>
+          <input type="text" placeholder="Search..." class="w-full border border-slate-200 p-2 rounded-lg text-sm focus:outline-none focus:border-brand-accent">
+        </div>
+        <div>
+          <h3 class="font-semibold text-sm mb-2">Category</h3>
+          <div class="space-y-2 text-sm text-slate-600">
+            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked class="accent-brand-dark"> Development</label>
+            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="accent-brand-dark"> Design</label>
+            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="accent-brand-dark"> Data Science</label>
+          </div>
+        </div>
+        <div>
+          <h3 class="font-semibold text-sm mb-2">Price Range</h3>
+          <input type="range" class="w-full h-1 bg-slate-200 accent-brand-dark rounded-lg cursor-pointer">
+          <div class="flex justify-between text-xs text-slate-500 mt-1"><span>$0</span><span>$500+</span></div>
+        </div>
+      </div>
+
+      <div class="flex-1 grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div v-for="service in services" :key="service.id" class="bg-white rounded-2xl shadow-sm overflow-hidden hover:shadow-md transition">
+          <div class="h-40 relative">
+            <img :src="service.image" class="w-full h-full object-cover">
+            <span class="absolute top-2 right-2 bg-white/90 text-[10px] font-bold px-2 py-1 rounded">{{ service.category }}</span>
+          </div>
+          <div class="p-4">
+            <h3 class="font-bold text-slate-800 text-sm mb-1">{{ service.title }}</h3>
+            <p class="text-xs text-slate-500 mb-2">{{ service.provider }}</p>
+            <div class="flex gap-2 mb-3">
+              <span 
+                v-for="tag in service.tags" 
+                :key="tag" 
+                class="text-[10px] px-2 py-0.5 rounded"
+                :class="service.tagColor"
+              >
+                {{ tag }}
+              </span>
+            </div>
+            <div class="flex justify-between items-center pt-2 border-t border-slate-100">
+              <span class="font-bold text-sm">{{ service.price }}</span>
+              <button class="bg-brand-dark text-white text-xs px-3 py-1.5 rounded hover:opacity-90">View Details</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref } from 'vue'
+
+const services = ref([
+  {
+    id: 1,
+    title: 'Custom Web App Development',
+    provider: 'TechSolutions Inc.',
+    category: 'Development',
+    image: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=800&q=80',
+    tags: ['React', 'Node'],
+    tagColor: 'bg-indigo-50 text-indigo-600',
+    price: '$2,500+'
+  },
+  {
+    id: 2,
+    title: 'UI/UX Design & Prototyping',
+    provider: 'Creative Minds Studio',
+    category: 'Design',
+    image: 'https://images.unsplash.com/photo-1531403009284-440f080d1e12?w=800&q=80',
+    tags: ['Figma', 'Research'],
+    tagColor: 'bg-purple-50 text-purple-600',
+    price: '$1,500+'
+  }
+])
+</script>
+
+--- END OF FILE ---
+
+--- FILE: src/views/MentoringView.vue ---
+
+<script setup>
+import { ref } from 'vue'
+
+const activeTab = ref('find') // 'find', 'upcoming', 'history'
+
+const mentors = ref([
+  { name: 'Dr. Sarah Anderson', role: 'Senior Software Architect', price: '$150/hr', image: 'https://images.unsplash.com/photo-1544717305-2782549b5136?w=800&q=80' },
+  { name: 'Michael Zhang', role: 'Principal UX Designer', price: '$120/hr', image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=800&q=80' }
+])
+</script>
+
+<template>
+  <div>
+    <div class="mb-6">
+      <h1 class="text-2xl font-bold text-slate-800">Mentoring Sessions</h1>
+      <p class="text-slate-500">Connect with industry experts</p>
+    </div>
+
+    <div class="flex gap-2 mb-8 border-b border-slate-200 pb-1">
+      <button 
+        @click="activeTab = 'find'"
+        :class="activeTab === 'find' ? 'border-[#1a1b41] text-[#1a1b41]' : 'border-transparent text-slate-500'"
+        class="px-4 py-2 border-b-2 font-semibold text-sm transition-colors"
+      >Find a Mentor</button>
+      <button 
+        @click="activeTab = 'upcoming'"
+        :class="activeTab === 'upcoming' ? 'border-[#1a1b41] text-[#1a1b41]' : 'border-transparent text-slate-500'"
+        class="px-4 py-2 border-b-2 font-semibold text-sm transition-colors"
+      >My Sessions</button>
+    </div>
+
+    <div v-if="activeTab === 'find'" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div v-for="mentor in mentors" :key="mentor.name" class="bg-white rounded-2xl shadow-sm overflow-hidden group">
+        <div class="h-48 relative">
+          <img :src="mentor.image" class="w-full h-full object-cover">
+          <span class="absolute top-3 right-3 bg-green-500 text-white text-[10px] font-bold px-2 py-1 rounded">Available</span>
+        </div>
+        <div class="p-5">
+          <h3 class="font-bold text-lg text-slate-800">{{ mentor.name }}</h3>
+          <p class="text-sm text-slate-500 mb-3">{{ mentor.role }}</p>
+          <div class="flex justify-between items-center pt-3 border-t border-slate-100">
+            <span class="font-bold text-slate-800">{{ mentor.price }}</span>
+            <button class="bg-[#1a1b41] text-white text-xs font-semibold px-4 py-2 rounded-lg hover:opacity-90">Book Session</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="activeTab === 'upcoming'" class="space-y-6">
+      <div class="bg-white rounded-2xl shadow-sm p-6 border border-slate-100">
+        <div class="flex justify-between items-start mb-4">
+          <div class="flex gap-4">
+            <div class="w-12 h-12 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-700 font-bold text-lg">SA</div>
+            <div>
+              <h3 class="font-bold text-slate-800">Dr. Sarah Anderson</h3>
+              <p class="text-sm text-slate-500">Scaling Microservices Architecture</p>
+            </div>
+          </div>
+          <span class="bg-[#1a1b41] text-white text-[10px] font-bold px-3 py-1 rounded-full">confirmed</span>
+        </div>
+        <div class="flex gap-6 text-sm text-slate-600 mb-6">
+          <span><i class="fa-regular fa-calendar mr-2"></i> Nov 20, 2025</span>
+          <span><i class="fa-solid fa-video mr-2"></i> Video Call</span>
+        </div>
+        <button class="bg-[#1a1b41] text-white px-6 py-2 rounded-lg text-sm font-semibold hover:opacity-90 flex items-center gap-2"><i class="fa-solid fa-video"></i> Join Call</button>
+      </div>
+    </div>
+  </div>
+</template>
+
+--- END OF FILE ---
+
+--- FILE: src/views/UnauthorizedView.vue ---
+
+<script setup>
+import { useRouter } from 'vue-router'
+const router = useRouter()
+</script>
+
+<template>
+  <div class="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6 text-center">
+    <div class="w-24 h-24 bg-red-100 rounded-full flex items-center justify-center mb-6 animate-bounce">
+      <i class="fa-solid fa-lock text-4xl text-red-500"></i>
+    </div>
+    
+    <h1 class="text-4xl font-bold text-slate-800 mb-2">Access Denied</h1>
+    <p class="text-slate-500 mb-8 max-w-md">
+      Oops! Kamu tidak memiliki izin untuk mengakses area ini. Halaman ini khusus untuk Role tertentu (Instructor/Admin).
+    </p>
+    
+    <div class="flex gap-4">
+      <button 
+        @click="router.push('/dashboard')" 
+        class="bg-[#1a1b41] text-white px-6 py-3 rounded-xl font-bold hover:shadow-lg transition-all"
+      >
+        Back to Dashboard
+      </button>
+      <button 
+        @click="router.go(-1)" 
+        class="px-6 py-3 rounded-xl font-bold text-slate-600 border border-slate-200 hover:bg-white transition-all"
+      >
+        Go Back
+      </button>
+    </div>
+  </div>
+</template>
+
+--- END OF FILE ---
+
+--- FILE: src/views/VideoRoomView.vue ---
+
+<template>
+    <div class="fixed inset-0 bg-slate-100 z-[100] flex flex-col">
+        <div class="bg-white px-6 py-4 border-b border-slate-200 flex justify-between items-center shadow-sm">
+            <div class="flex items-center gap-3">
+                <i class="fa-solid fa-video text-brand-accent"></i>
+                <div>
+                    <h2 class="font-bold text-slate-800 text-sm">{{ roomName }}</h2>
+                    <p class="text-xs text-slate-500">Hosted by Sarah Johnson • 6 participants</p>
+                </div>
+            </div>
+            <router-link to="/discussion" class="bg-red-500 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-red-600 transition decoration-none flex items-center">
+                <i class="fa-solid fa-phone-slash mr-2"></i> Leave Room
+            </router-link>
+        </div>
+
+        <div class="flex-1 flex overflow-hidden">
+            <div class="flex-1 p-4 flex flex-col gap-4">
+                <div class="flex-1 bg-slate-200 rounded-2xl flex items-center justify-center relative overflow-hidden">
+                    <div class="text-center">
+                        <div class="w-24 h-24 bg-brand-dark text-white rounded-full flex items-center justify-center text-3xl font-bold mx-auto mb-4">SJ</div>
+                        <h3 class="font-semibold text-slate-700">Sarah Johnson</h3>
+                        <span class="bg-brand-accent text-white text-[10px] px-2 py-1 rounded-full mt-2 inline-block">Speaking</span>
+                    </div>
+                </div>
+
+                <div class="flex justify-center gap-4 mt-2">
+                    <button class="w-12 h-12 rounded-full bg-brand-dark text-white hover:bg-opacity-90 flex items-center justify-center"><i class="fa-solid fa-microphone"></i></button>
+                    <button class="w-12 h-12 rounded-full bg-brand-dark text-white hover:bg-opacity-90 flex items-center justify-center"><i class="fa-solid fa-video"></i></button>
+                    <button class="w-12 h-12 rounded-full bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 flex items-center justify-center"><i class="fa-solid fa-desktop"></i></button>
+                </div>
+            </div>
+
+            <div class="w-80 bg-white border-l border-slate-200 flex flex-col">
+                <div class="p-4 border-b border-slate-100 font-bold text-slate-700">Chat</div>
+                <div class="flex-1 p-4 space-y-4 overflow-y-auto">
+                    <div>
+                        <div class="flex justify-between text-[10px] text-slate-400 mb-1"><span>Sarah Johnson</span><span>10:30 AM</span></div>
+                        <p class="text-xs text-slate-600 bg-slate-50 p-2 rounded-lg rounded-tl-none">Welcome everyone!</p>
+                    </div>
+                </div>
+                <div class="p-4 border-t border-slate-100 flex gap-2">
+                    <input type="text" placeholder="Type a message..." class="flex-1 text-xs border border-slate-200 rounded-lg px-3 py-2 outline-none focus:border-brand-accent">
+                    <button class="bg-brand-dark text-white w-8 h-8 rounded-lg flex items-center justify-center"><i class="fa-solid fa-paper-plane text-xs"></i></button>
+                </div>
+            </div>
+        </div>
+    </div>
+</template>
+
+<script setup lang="ts">
+defineProps<{ roomName: string }>()
+</script>
+
+--- END OF FILE ---
+
+--- FILE: src/views/admin/AdminApplicationsView.vue ---
+
+<script setup>
+import { ref, onMounted } from 'vue'
+import { supabase } from '../../lib/supabase'
+
+const applications = ref([])
+const loading = ref(true)
+
+const fetchApplications = async () => {
+  loading.value = true
+  
+  // DEBUGGING: Cek dulu data mentahnya masuk gak
+  const { data: rawData, error: rawError } = await supabase
+    .from('role_applications')
+    .select('*')
+  console.log('Semua Data Aplikasi:', rawData) 
+
+  // FETCH UTAMA
+  const { data, error } = await supabase
+    .from('role_applications')
+    .select(`
+      *,
+      profiles!inner ( full_name, avatar_url, email ) 
+    `)
+    // Pakai !inner (Inner Join) untuk memastikan hanya mengambil data yang profilenya ada
+    // Kalau mau aman pakai left join, hapus "!inner"
+    .ilike('status', 'pending') // Ganti .eq jadi .ilike biar Gak Peduli Huruf Besar/Kecil
+    .order('created_at', { ascending: false })
+
+  if (error) {
+    console.error("Error fetching apps:", error.message)
+    alert("Gagal ambil data: " + error.message)
+  }
+
+  if (data) {
+    console.log("Data yang berhasil diambil:", data)
+    applications.value = data
+  }
+  
+  loading.value = false
+}
+
+// 2. Logic APPROVE (Terima Lamaran)
+const approveUser = async (app) => {
+  if (!confirm(`Are you sure you want to approve ${app.profiles.full_name} as ${app.requested_role}?`)) return
+
+  try {
+    // A. Cari ID Role yang diminta (instructor/mentor)
+    const { data: roleData, error: roleError } = await supabase
+      .from('roles')
+      .select('id')
+      .eq('name', app.requested_role)
+      .single()
+    
+    if (roleError || !roleData) throw new Error('Role not found in database!')
+
+    // B. Masukin User ke Role tersebut (Promote)
+    const { error: insertError } = await supabase
+      .from('user_roles')
+      .insert({
+        user_id: app.user_id,
+        role_id: roleData.id
+      })
+      // Abaikan kalau user udh punya role itu (biar gak error)
+      .select() 
+
+    if (insertError) throw insertError
+
+    // C. Update Status Lamaran jadi 'approved'
+    await supabase
+      .from('role_applications')
+      .update({ status: 'approved' })
+      .eq('id', app.id)
+
+    alert(`Success! ${app.profiles.full_name} is now a ${app.requested_role}.`)
+    fetchApplications() // Refresh list
+
+  } catch (err) {
+    alert('Error: ' + err.message)
+  }
+}
+
+// 3. Logic REJECT (Tolak Lamaran)
+const rejectUser = async (id) => {
+  if (!confirm('Reject this application? This action cannot be undone.')) return
+
+  const { error } = await supabase
+    .from('role_applications')
+    .update({ status: 'rejected' })
+    .eq('id', id)
+
+  if (error) alert(error.message)
+  else fetchApplications()
+}
+
+onMounted(() => { fetchApplications() })
+</script>
+
+<template>
+  <div>
+    <div class="mb-8">
+      <h1 class="text-2xl font-bold text-slate-800">Instructor Applications</h1>
+      <p class="text-slate-500">Review requests from users who want to join the expert team.</p>
+    </div>
+
+    <div v-if="loading" class="text-center py-12">
+      <i class="fa-solid fa-circle-notch fa-spin text-3xl text-[#00d4e3]"></i>
+    </div>
+
+    <div v-else-if="applications.length === 0" class="bg-white p-12 rounded-2xl shadow-sm text-center border border-slate-100">
+      <div class="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
+        <i class="fa-solid fa-check text-2xl"></i>
+      </div>
+      <h3 class="font-bold text-slate-700">All caught up!</h3>
+      <p class="text-slate-500 text-sm">No pending applications at the moment.</p>
+    </div>
+
+    <div v-else class="grid grid-cols-1 gap-6">
+      <div v-for="app in applications" :key="app.id" class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col md:flex-row gap-6 hover:shadow-md transition-all">
+        
+        <div class="flex-1">
+          <div class="flex items-center gap-4 mb-4">
+            <img :src="app.profiles?.avatar_url || 'https://ui-avatars.com/api/?name=User'" class="w-14 h-14 rounded-full border-2 border-slate-100">
+            <div>
+              <h4 class="font-bold text-lg text-slate-800">{{ app.profiles?.full_name }}</h4>
+              <p class="text-xs text-slate-500">{{ app.profiles?.email }}</p>
+              <span class="inline-block mt-2 text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded bg-slate-100 text-slate-600">
+                Applying for: <span class="text-[#00d4e3]">{{ app.requested_role }}</span>
+              </span>
+            </div>
+          </div>
+
+          <div class="bg-slate-50 p-4 rounded-xl space-y-3 text-sm">
+            <div>
+              <strong class="text-slate-700 block text-xs uppercase mb-1">Portfolio / LinkedIn</strong>
+              <a :href="app.portfolio_url" target="_blank" class="text-blue-600 font-semibold hover:underline flex items-center gap-2">
+                <i class="fa-solid fa-link"></i> {{ app.portfolio_url }}
+              </a>
+            </div>
+            <div>
+              <strong class="text-slate-700 block text-xs uppercase mb-1">Motivation / Bio</strong>
+              <p class="text-slate-600 italic">"{{ app.bio }}"</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex flex-row md:flex-col justify-center gap-3 min-w-[140px] border-t md:border-t-0 md:border-l border-slate-100 pt-4 md:pt-0 md:pl-6">
+          <button 
+            @click="approveUser(app)"
+            class="flex-1 bg-green-500 text-white px-4 py-3 rounded-xl font-bold text-sm hover:bg-green-600 shadow-lg shadow-green-200 transition-all flex items-center justify-center gap-2"
+          >
+            <i class="fa-solid fa-check"></i> Approve
+          </button>
+          
+          <button 
+            @click="rejectUser(app.id)"
+            class="flex-1 bg-white border-2 border-slate-200 text-slate-500 px-4 py-3 rounded-xl font-bold text-sm hover:border-red-200 hover:text-red-500 hover:bg-red-50 transition-all flex items-center justify-center gap-2"
+          >
+            <i class="fa-solid fa-xmark"></i> Reject
+          </button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</template>
+
+--- END OF FILE ---
+
+--- FILE: src/views/admin/UserManagementView.vue ---
+
+<script setup>
+import { ref, onMounted, computed } from 'vue'
+import { supabase } from '../../lib/supabase'
+
+const users = ref([])
+const rolesList = ref([]) 
+const loading = ref(true)
+const searchQuery = ref('')
+
+// 1. Fetch Data User & Role Mereka
+const fetchUsersAndRoles = async () => {
+  loading.value = true
+  
+  try {
+    // A. Ambil Profiles + Roles (Nested Join)
+    const { data: profilesData, error } = await supabase
+      .from('profiles')
+      .select(`
+        *,
+        user_roles (
+          roles ( id, name )
+        )
+      `)
+      .order('created_at', { ascending: false })
+
+    if (error) throw error // Lempar error biar ketangkep catch
+
+    if (profilesData) {
+      console.log("Data Users Mentah:", profilesData) // Cek di Console Browser
+
+      // B. Ratakan struktur datanya
+      users.value = profilesData.map(user => ({
+        ...user,
+        // Mapping user_roles jadi array string simple
+        // Handle kalo user_roles null/undefined
+        roles: user.user_roles ? user.user_roles.map(ur => ur.roles?.name).filter(Boolean) : []
+      }))
+    }
+
+    // C. Ambil daftar Role master
+    const { data: allRoles } = await supabase.from('roles').select('*')
+    rolesList.value = allRoles
+
+  } catch (err) {
+    console.error("Error fetching users:", err.message)
+    alert("Gagal ambil data user: " + err.message)
+  } finally {
+    loading.value = false
+  }
+}
+
+// 2. Filter Search
+const filteredUsers = computed(() => {
+  if (!searchQuery.value) return users.value
+  const query = searchQuery.value.toLowerCase()
+  
+  return users.value.filter(u => 
+    (u.full_name && u.full_name.toLowerCase().includes(query)) || 
+    (u.email && u.email.toLowerCase().includes(query))
+  )
+})
+
+// 3. Tambah Role
+const addRole = async (user, roleName) => {
+  if (!confirm(`Promote ${user.full_name} to ${roleName}?`)) return
+  
+  const roleId = rolesList.value.find(r => r.name === roleName)?.id
+  const { error } = await supabase.from('user_roles').insert({ user_id: user.id, role_id: roleId })
+
+  if (error) alert(error.message)
+  else fetchUsersAndRoles()
+}
+
+// 4. Hapus Role
+const removeRole = async (user, roleName) => {
+  if (!confirm(`Remove ${roleName} access from ${user.full_name}?`)) return
+
+  const roleId = rolesList.value.find(r => r.name === roleName)?.id
+  
+  const { error } = await supabase
+    .from('user_roles')
+    .delete()
+    .eq('user_id', user.id)
+    .eq('role_id', roleId)
+
+  if (error) alert(error.message)
+  else fetchUsersAndRoles()
+}
+
+onMounted(() => { fetchUsersAndRoles() })
+</script>
+
+<template>
+  <div>
+    <div class="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
+      <div>
+        <h1 class="text-2xl font-bold text-slate-800">User Management</h1>
+        <p class="text-slate-500">Manage access and roles for {{ users.length }} registered users.</p>
+      </div>
+      
+      <div class="relative w-full md:w-64">
+        <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+        <input 
+          v-model="searchQuery" 
+          type="text" 
+          placeholder="Search users..." 
+          class="w-full pl-9 pr-4 py-2 rounded-xl border border-slate-200 focus:border-[#00d4e3] focus:ring-2 focus:ring-cyan-100 outline-none text-sm"
+        >
+      </div>
+    </div>
+
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse">
+          <thead class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider font-semibold border-b border-slate-100">
+            <tr>
+              <th class="p-5">User Profile</th>
+              <th class="p-5">Current Roles</th>
+              <th class="p-5 text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100 text-sm">
+            
+            <tr v-if="loading">
+              <td colspan="3" class="p-8 text-center text-slate-400 italic">Loading user database...</td>
+            </tr>
+
+            <tr v-else-if="filteredUsers.length === 0">
+              <td colspan="3" class="p-8 text-center text-slate-400">No users found.</td>
+            </tr>
+
+            <tr v-else v-for="user in filteredUsers" :key="user.id" class="hover:bg-slate-50 transition-colors group">
+              <td class="p-5">
+                <div class="flex items-center gap-3">
+                  <img :src="user.avatar_url || 'https://ui-avatars.com/api/?name=User'" class="w-10 h-10 rounded-full bg-slate-200 object-cover">
+                  <div>
+                    <h4 class="font-bold text-slate-800">{{ user.full_name }}</h4>
+                    <p class="text-xs text-slate-400 font-mono">{{ user.email }}</p>
+                    <p class="text-[10px] text-slate-300">ID: {{ user.id.slice(0,8) }}...</p>
+                  </div>
+                </div>
+              </td>
+
+              <td class="p-5">
+                <div class="flex flex-wrap gap-2">
+                  <span 
+                    v-for="role in user.roles" :key="role" 
+                    class="px-2.5 py-1 rounded-md text-[10px] font-bold uppercase border"
+                    :class="{
+                      'bg-slate-100 border-slate-200 text-slate-600': role === 'student',
+                      'bg-blue-50 border-blue-100 text-blue-600': role === 'instructor',
+                      'bg-purple-50 border-purple-100 text-purple-600': role === 'mentor',
+                      'bg-red-50 border-red-100 text-red-600': role === 'admin'
+                    }"
+                  >
+                    {{ role }}
+                  </span>
+                </div>
+              </td>
+
+              <td class="p-5 text-right">
+                <div class="flex justify-end gap-2 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
+                  
+                  <button 
+                    v-if="!user.roles.includes('instructor')"
+                    @click="addRole(user, 'instructor')"
+                    class="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white transition flex items-center justify-center"
+                    title="Promote to Instructor"
+                  >
+                    <i class="fa-solid fa-chalkboard-user"></i>
+                  </button>
+                  <button 
+                    v-else
+                    @click="removeRole(user, 'instructor')"
+                    class="w-8 h-8 rounded-lg bg-white border border-slate-200 text-slate-400 hover:border-red-500 hover:text-red-500 transition flex items-center justify-center"
+                    title="Remove Instructor"
+                  >
+                    <i class="fa-solid fa-ban"></i>
+                  </button>
+
+                  <button 
+                    v-if="!user.roles.includes('mentor')"
+                    @click="addRole(user, 'mentor')"
+                    class="w-8 h-8 rounded-lg bg-purple-50 text-purple-600 hover:bg-purple-600 hover:text-white transition flex items-center justify-center"
+                    title="Promote to Mentor"
+                  >
+                    <i class="fa-solid fa-video"></i>
+                  </button>
+                  <button 
+                    v-else
+                    @click="removeRole(user, 'mentor')"
+                    class="w-8 h-8 rounded-lg bg-white border border-slate-200 text-slate-400 hover:border-red-500 hover:text-red-500 transition flex items-center justify-center"
+                    title="Remove Mentor"
+                  >
+                    <i class="fa-solid fa-ban"></i>
+                  </button>
+
+                </div>
+              </td>
+            </tr>
+
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</template>
+
+--- END OF FILE ---
+
+--- FILE: src/views/creator/ManageCoursesView.vue ---
+
+<script setup>
+import { ref, onMounted } from 'vue'
+import { supabase } from '../../lib/supabase'
+
+const myCourses = ref([])
+const loading = ref(true)
+
+const fetchMyCourses = async () => {
+  const { data: { user } } = await supabase.auth.getUser()
+  
+  if (user) {
+    // Fetch courses dimana instructor_id = user yg login
+    const { data, error } = await supabase
+      .from('courses')
+      .select('*')
+      .eq('instructor_id', user.id)
+      .order('created_at', { ascending: false })
+
+    if (data) myCourses.value = data
+  }
+  loading.value = false
+}
+
+// Mock function create (nanti bisa dibikin page baru)
+const createCourse = async () => {
+  const title = prompt("Enter Course Title:")
+  if (!title) return
+  
+  const { data: { user } } = await supabase.auth.getUser()
+  
+  // Insert dummy data
+  const { error } = await supabase.from('courses').insert({
+    title: title,
+    instructor_id: user.id,
+    description: 'New draft course',
+    price: 0,
+    is_published: false,
+    image_url: 'https://via.placeholder.com/400x250'
+  })
+  
+  if (!error) fetchMyCourses()
+  else alert(error.message)
+}
+
+onMounted(() => { fetchMyCourses() })
+</script>
+
+<template>
+  <div>
+    <div class="flex justify-between items-center mb-8">
+      <div>
+        <h1 class="text-2xl font-bold text-slate-800">Instructor Studio</h1>
+        <p class="text-slate-500">Manage your courses and curriculum</p>
+      </div>
+      <button @click="createCourse" class="bg-[#1a1b41] text-white px-6 py-2.5 rounded-xl font-bold hover:shadow-lg transition flex items-center gap-2">
+        <i class="fa-solid fa-plus"></i> New Course
+      </button>
+    </div>
+
+    <div v-if="loading" class="text-center py-12">
+      <i class="fa-solid fa-circle-notch fa-spin text-2xl text-[#00d4e3]"></i>
+    </div>
+
+    <div v-else-if="myCourses.length === 0" class="bg-white p-12 rounded-2xl text-center border-2 border-dashed border-slate-200">
+      <div class="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-400">
+        <i class="fa-solid fa-box-open text-2xl"></i>
+      </div>
+      <h3 class="font-bold text-slate-700">No Courses Yet</h3>
+      <p class="text-slate-500 text-sm mb-6">Start sharing your knowledge with the world.</p>
+      <button @click="createCourse" class="text-[#00d4e3] font-bold hover:underline">Create First Course</button>
+    </div>
+
+    <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div v-for="course in myCourses" :key="course.id" class="bg-white rounded-2xl shadow-sm overflow-hidden group border border-slate-100 relative">
+        <div class="h-40 bg-slate-200 relative">
+          <img :src="course.image_url" class="w-full h-full object-cover grayscale group-hover:grayscale-0 transition duration-500">
+          <div class="absolute top-3 right-3">
+             <span v-if="course.is_published" class="bg-green-500 text-white text-[10px] font-bold px-2 py-1 rounded">PUBLISHED</span>
+             <span v-else class="bg-slate-500 text-white text-[10px] font-bold px-2 py-1 rounded">DRAFT</span>
+          </div>
+        </div>
+        <div class="p-5">
+          <h3 class="font-bold text-slate-800 mb-1 line-clamp-1">{{ course.title }}</h3>
+          <p class="text-xs text-slate-500 mb-4">{{ course.total_students || 0 }} Students Enrolled</p>
+          
+          <div class="flex gap-2">
+            <button class="flex-1 bg-slate-100 text-slate-600 py-2 rounded-lg text-xs font-bold hover:bg-slate-200 transition">
+              <i class="fa-solid fa-pen mr-1"></i> Edit
+            </button>
+            <button class="flex-1 bg-slate-100 text-slate-600 py-2 rounded-lg text-xs font-bold hover:bg-slate-200 transition">
+              <i class="fa-solid fa-chart-simple mr-1"></i> Stats
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+--- END OF FILE ---
+
+--- FILE: src/views/creator/MentorScheduleView.vue ---
+
+<script setup>
+import { ref } from 'vue'
+
+// Dummy Data (Nanti diganti fetch Supabase table 'mentoring_sessions')
+const upcomingSessions = ref([
+  { id: 1, student: 'Budi Santoso', topic: 'React Performance', time: '14:00 - 15:00', date: 'Today' },
+  { id: 2, student: 'Siti Aminah', topic: 'UI Design Review', time: '10:00 - 11:00', date: 'Tomorrow' },
+])
+
+const availability = ref([
+  { day: 'Mon', active: true, hours: '09:00 - 17:00' },
+  { day: 'Tue', active: true, hours: '09:00 - 17:00' },
+  { day: 'Wed', active: false, hours: '-' },
+  { day: 'Thu', active: true, hours: '13:00 - 18:00' },
+  { day: 'Fri', active: true, hours: '09:00 - 15:00' },
+])
+</script>
+
+<template>
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+    <div class="lg:col-span-2 space-y-6">
+      <div class="flex justify-between items-center">
+        <h1 class="text-2xl font-bold text-slate-800">Mentoring Schedule</h1>
+        <button class="text-[#00d4e3] font-semibold text-sm hover:underline">View Calendar</button>
+      </div>
+
+      <div class="space-y-4">
+        <div v-for="session in upcomingSessions" :key="session.id" class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex justify-between items-center">
+          <div class="flex items-center gap-4">
+            <div class="w-12 h-12 bg-indigo-50 rounded-full flex items-center justify-center text-indigo-600 font-bold">
+              {{ session.student.substring(0,2).toUpperCase() }}
+            </div>
+            <div>
+              <h4 class="font-bold text-slate-800">{{ session.student }}</h4>
+              <p class="text-xs text-slate-500">{{ session.topic }}</p>
+            </div>
+          </div>
+          <div class="text-right">
+            <p class="font-bold text-slate-800 text-sm">{{ session.time }}</p>
+            <p class="text-xs text-green-500 font-bold uppercase">{{ session.date }}</p>
+          </div>
+          <div class="ml-4 pl-4 border-l border-slate-100">
+             <button class="bg-[#1a1b41] text-white w-10 h-10 rounded-lg hover:bg-[#00d4e3] hover:text-[#1a1b41] transition">
+               <i class="fa-solid fa-video"></i>
+             </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="bg-white p-6 rounded-2xl shadow-sm">
+        <h3 class="font-bold text-slate-800 mb-6">Weekly Availability</h3>
+        <div class="space-y-4">
+          <div v-for="slot in availability" :key="slot.day" class="flex items-center justify-between pb-4 border-b border-slate-50 last:border-0 last:pb-0">
+            <div class="flex items-center gap-3">
+               <div 
+                 @click="slot.active = !slot.active"
+                 class="w-10 h-5 rounded-full relative cursor-pointer transition-colors duration-300"
+                 :class="slot.active ? 'bg-[#00d4e3]' : 'bg-slate-300'"
+               >
+                 <div class="w-3 h-3 bg-white rounded-full absolute top-1 transition-all duration-300" :class="slot.active ? 'left-6' : 'left-1'"></div>
+               </div>
+               <span class="font-bold text-slate-700 w-8">{{ slot.day }}</span>
+            </div>
+            <span class="text-xs text-slate-500">{{ slot.hours }}</span>
+          </div>
+        </div>
+        <button class="w-full mt-6 border border-slate-200 text-slate-600 py-3 rounded-xl text-sm font-bold hover:bg-slate-50 transition">
+          Edit Time Slots
+        </button>
+      </div>
+    </div>
+  </div>
+</template>
+
+--- END OF FILE ---
+
+--- FILE: src/components/Sidebar.vue ---
+
+<script setup>
+import { computed } from 'vue'
+import { RouterLink } from 'vue-router'
+import { useUser } from '../composables/useUser'
+import { supabase } from '../lib/supabase'
+import { useRouter } from 'vue-router'
+
+const router = useRouter()
+const { userProfile, userRoles, currentMode, toggleMode, hasRole } = useUser()
+
+// Cek status expert
+const isExpert = computed(() => hasRole('instructor') || hasRole('mentor'))
+
+// Menu buat Student
+const learnerMenu = [
+  { path: '/dashboard', name: 'Dashboard', icon: 'fa-grid-2' },
+  { path: '/courses', name: 'Explore Courses', icon: 'fa-book-open' },
+  { path: '/marketplace', name: 'Marketplace', icon: 'fa-store' },
+  { path: '/mentoring', name: 'Find Mentor', icon: 'fa-video' },
+  { path: '/community', name: 'Community', icon: 'fa-users' },
+]
+
+// Menu buat Creator (Instructor/Mentor)
+const creatorMenu = [
+  { path: '/dashboard', name: 'Creator Stats', icon: 'fa-chart-line' }, // Bisa diarahkan ke dashboard khusus nanti
+  { path: '/my-courses', name: 'Manage Courses', icon: 'fa-layer-group' },
+  { path: '/mentor-schedule', name: 'My Schedule', icon: 'fa-calendar-check' },
+]
+
+// Tentukan menu mana yang tampil
+const currentMenu = computed(() => {
+  return currentMode.value === 'learner' ? learnerMenu : creatorMenu
+})
+
+// Cek apakah user punya hak akses Creator (Instructor atau Mentor)
+const isCreator = computed(() => hasRole('instructor') || hasRole('mentor'))
+
+const handleLogout = async () => {
+  await supabase.auth.signOut()
+  router.push('/')
+}
+</script>
+
+<template>
+  <aside class="w-64 bg-[#1a1b41] text-white fixed h-full z-50 flex flex-col p-5 shadow-xl">
+    
+    <div class="flex items-center gap-3 text-xl font-bold mb-8 pl-2">
+      <i class="fa-solid fa-shapes text-[#00d4e3] text-2xl"></i>
+      <span>MINDCRAFTED</span>
+    </div>
+
+    <div v-if="isCreator" class="bg-[#151635] p-1 rounded-lg flex text-xs mb-6 mx-2 border border-white/5">
+      <button 
+        @click="currentMode = 'learner'"
+        class="flex-1 py-2 rounded-md transition-all font-semibold"
+        :class="currentMode === 'learner' ? 'bg-[#00d4e3] text-[#1a1b41]' : 'text-slate-400 hover:text-white'"
+      >
+        Learner
+      </button>
+      <button 
+        @click="currentMode = 'creator'"
+        class="flex-1 py-2 rounded-md transition-all font-semibold"
+        :class="currentMode === 'creator' ? 'bg-[#00d4e3] text-[#1a1b41]' : 'text-slate-400 hover:text-white'"
+      >
+        Creator
+      </button>
+    </div>
+
+    <nav class="flex-1 overflow-y-auto">
+      <p class="text-[10px] uppercase text-slate-500 font-bold px-4 mb-2 tracking-wider">
+        {{ currentMode === 'learner' ? 'Learning Menu' : 'Creator Studio' }}
+      </p>
+      
+      <ul class="space-y-2">
+        <li v-for="item in currentMenu" :key="item.path">
+          <RouterLink 
+            :to="item.path" 
+            class="flex items-center gap-4 px-5 py-3 rounded-xl transition-all text-slate-400 hover:text-white hover:bg-white/10"
+            active-class="bg-white/10 text-white font-semibold border-l-4 border-[#00d4e3]"
+          >
+            <i :class="`fa-solid ${item.icon}`"></i> {{ item.name }}
+          </RouterLink>
+        </li>
+      </ul>
+    </nav>
+    
+    <nav class="overflow-y-auto">
+   
+      <div v-if="!isExpert" class="mt-8 px-5">
+        <div class="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl p-4 text-center relative overflow-hidden group">
+          <div class="relative z-10">
+            <div class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-3 text-white">
+              <i class="fa-solid fa-chalkboard-user"></i>
+            </div>
+            <h4 class="text-white font-bold text-sm mb-1">Become a Mentor</h4>
+            <p class="text-indigo-100 text-[10px] mb-3">Earn from your expertise</p>
+            <router-link 
+              to="/apply-instructor" 
+              class="block w-full bg-white text-indigo-600 py-2 rounded-lg text-xs font-bold hover:bg-indigo-50 transition"
+            >
+              Apply Now
+            </router-link>
+          </div>
+          <div class="absolute top-0 left-0 w-full h-full bg-white/5 group-hover:bg-white/10 transition"></div>
+        </div>
+      </div>
+
+    </nav>
+    
+    <div v-if="userProfile" class="mt-auto border-t border-white/10 pt-4 flex items-center gap-3">
+      <img :src="userProfile.avatar_url" class="w-10 h-10 rounded-full border-2 border-[#00d4e3]">
+      <div class="flex-1 min-w-0">
+        <h4 class="text-sm font-semibold truncate">{{ userProfile.full_name }}</h4>
+        <span class="text-[10px] bg-slate-600 px-1.5 py-0.5 rounded text-slate-300 uppercase">
+          {{ userRoles.join(', ') || 'Student' }}
+        </span>
+      </div>
+      <button @click="handleLogout" class="text-slate-400 hover:text-red-400 transition">
+        <i class="fa-solid fa-right-from-bracket"></i>
+      </button>
+    </div>
+
+  </aside>
+</template>
+
+--- END OF FILE ---
+
+--- FILE: src/composables/useTheme.ts ---
+
+import { ref, onMounted } from 'vue'
+
+const isDark = ref(false)
+
+export function useTheme() {
+  
+  // Fungsi buat Ganti Mode
+  const toggleTheme = () => {
+    isDark.value = !isDark.value
+    applyTheme()
+  }
+
+  // Fungsi buat Nerapin Class ke HTML
+  const applyTheme = () => {
+    if (isDark.value) {
+      document.documentElement.classList.add('dark')
+      localStorage.setItem('theme', 'dark') // Simpan ke memory browser
+    } else {
+      document.documentElement.classList.remove('dark')
+      localStorage.setItem('theme', 'light')
+    }
+  }
+
+  // Cek Settingan Awal Pas Website Dibuka
+  onMounted(() => {
+    // Cek LocalStorage atau Settingan OS User
+    const userPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+    const savedTheme = localStorage.getItem('theme')
+
+    if (savedTheme === 'dark' || (!savedTheme && userPrefersDark)) {
+      isDark.value = true
+    } else {
+      isDark.value = false
+    }
+    applyTheme()
+  })
+
+  return { isDark, toggleTheme }
+}
+
+--- END OF FILE ---
+
+--- FILE: src/composables/useUser.ts ---
+
+import { ref } from 'vue'
+import { supabase } from '../lib/supabase'
+
+// Global State (biar bisa diakses di mana aja)
+const userProfile = ref(null)
+const userRoles = ref<string[]>([])
+const currentMode = ref('learner') // 'learner' | 'creator'
+
+export function useUser() {
+  
+  const fetchUserData = async () => {
+    const { data: { user } } = await supabase.auth.getUser()
+    
+    if (user) {
+      // 1. Ambil Profile
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single()
+      userProfile.value = profile
+
+      // 2. Ambil Roles
+      const { data: rolesData } = await supabase
+        .from('user_roles')
+        .select('roles(name)')
+        .eq('user_id', user.id)
+
+      if (rolesData) {
+        userRoles.value = rolesData.map((item: any) => item.roles.name)
+      }
+    } else {
+      userProfile.value = null
+      userRoles.value = []
+    }
+  }
+
+  // Helper function buat ngecek role
+  const hasRole = (roleName: string) => userRoles.value.includes(roleName)
+  
+  // Logic Switch Mode
+  const toggleMode = () => {
+    if (currentMode.value === 'learner') {
+      currentMode.value = 'creator'
+    } else {
+      currentMode.value = 'learner'
+    }
+  }
+
+  return {
+    userProfile,
+    userRoles,
+    currentMode,
+    fetchUserData,
+    hasRole,
+    toggleMode
+  }
+}
+
+--- END OF FILE ---
