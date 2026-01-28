@@ -62,7 +62,7 @@ const onLessonDrop = async (moduleId) => {
     sort_order: index
   }))
   await supabase.from('lessons').upsert(updates)
-}
+} 
 
 // --- 3. UPLOAD VIDEO LOGIC ---
 const handleFileUpload = async (event) => {

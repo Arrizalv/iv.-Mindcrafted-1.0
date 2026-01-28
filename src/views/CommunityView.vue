@@ -60,13 +60,62 @@
           </div>
           <div class="flex items-center gap-6 text-slate-500 text-xs border-t border-slate-100 pt-3">
             <span class="cursor-pointer hover:text-red-500"><i class="fa-regular fa-heart mr-1"></i> {{ post.likes }}</span>
-            <span class="cursor-pointer hover:text-blue-500"><i class="fa-regular fa-comment mr-1"></i> {{ post.comments }}</span>
+            <span 
+              class="cursor-pointer hover:text-blue-500"
+              @click="openCommentModal(post)"
+            >
+              <i class="fa-regular fa-comment mr-1"></i> {{ post.comments }}
+            </span>
             <span class="cursor-pointer hover:text-brand-dark"><i class="fa-solid fa-share-nodes mr-1"></i> Share</span>
           </div>
         </div>
       </div>
 
       <div class="w-full lg:w-72 flex-shrink-0 space-y-6">
+        <!-- Wallet Connection Status -->
+        <div class="bg-white p-5 rounded-2xl shadow-sm">
+          <h3 class="font-bold text-sm mb-3 flex items-center gap-2">
+            <i class="fa-brands fa-ethereum text-indigo-500"></i>
+            Web3 Wallet
+          </h3>
+          <div v-if="!isMetaMaskInstalled" class="text-xs text-red-500 mb-2">
+            MetaMask not detected. Please install MetaMask.
+          </div>
+          <div v-else-if="isConnected" class="space-y-2">
+            <div class="flex items-center gap-2">
+              <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+              <span class="text-xs text-green-600 font-medium">Connected</span>
+            </div>
+            <div class="bg-slate-50 p-2 rounded-lg">
+              <p class="text-[10px] text-slate-500">Address</p>
+              <p class="text-xs font-mono font-medium">{{ shortAddress }}</p>
+            </div>
+            <div class="bg-slate-50 p-2 rounded-lg">
+              <p class="text-[10px] text-slate-500">Balance</p>
+              <p class="text-xs font-medium">{{ parseFloat(balance).toFixed(4) }} ETH</p>
+            </div>
+            <div class="bg-slate-50 p-2 rounded-lg">
+              <p class="text-[10px] text-slate-500">Network</p>
+              <p class="text-xs font-medium">{{ networkName }}</p>
+            </div>
+            <button 
+              @click="disconnectWallet" 
+              class="w-full text-xs text-red-500 hover:text-red-600 mt-2"
+            >
+              Disconnect
+            </button>
+          </div>
+          <div v-else>
+            <button 
+              @click="connectWallet"
+              class="w-full bg-indigo-500 hover:bg-indigo-600 text-white text-xs font-semibold px-4 py-2.5 rounded-lg transition-colors flex items-center justify-center gap-2"
+            >
+              <i class="fa-brands fa-ethereum"></i>
+              Connect MetaMask
+            </button>
+          </div>
+        </div>
+
         <div class="bg-white p-5 rounded-2xl shadow-sm">
           <div class="relative mb-4">
              <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
@@ -85,11 +134,154 @@
         </div>
       </div>
     </div>
+
+    <!-- Comment Modal with Payment -->
+    <div 
+      v-if="showCommentModal" 
+      class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+      @click.self="closeCommentModal"
+    >
+      <div class="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
+        <!-- Modal Header -->
+        <div class="bg-gradient-to-r from-indigo-500 to-purple-500 p-5 text-white">
+          <div class="flex items-center justify-between">
+            <h3 class="font-bold text-lg">Add Comment</h3>
+            <button @click="closeCommentModal" class="hover:bg-white/20 p-1 rounded-full transition-colors">
+              <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+          </div>
+          <p class="text-sm text-white/80 mt-1">Post: {{ selectedPost?.author }}</p>
+        </div>
+
+        <!-- Payment Info -->
+        <div class="p-5 border-b border-slate-100">
+          <div class="bg-amber-50 border border-amber-200 rounded-xl p-4">
+            <div class="flex items-start gap-3">
+              <i class="fa-brands fa-ethereum text-2xl text-amber-600"></i>
+              <div>
+                <h4 class="font-semibold text-sm text-amber-800">Payment Required</h4>
+                <p class="text-xs text-amber-700 mt-1">
+                  To ensure quality discussions, a small payment of 
+                  <span class="font-bold">{{ COMMENT_PAYMENT_AMOUNT }} ETH</span> 
+                  is required to post a comment.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Connection Status in Modal -->
+        <div class="p-5 border-b border-slate-100">
+          <div v-if="!isConnected" class="text-center">
+            <p class="text-sm text-slate-500 mb-3">Connect your wallet to continue</p>
+            <button 
+              @click="connectWallet"
+              :disabled="!isMetaMaskInstalled"
+              class="bg-indigo-500 hover:bg-indigo-600 disabled:bg-slate-300 text-white text-sm font-semibold px-6 py-2.5 rounded-lg transition-colors flex items-center justify-center gap-2 w-full"
+            >
+              <i class="fa-brands fa-ethereum"></i>
+              Connect MetaMask
+            </button>
+            <p v-if="!isMetaMaskInstalled" class="text-xs text-red-500 mt-2">
+              MetaMask extension is required
+            </p>
+          </div>
+          <div v-else class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <div class="w-2 h-2 bg-green-500 rounded-full"></div>
+              <span class="text-xs font-medium">{{ shortAddress }}</span>
+            </div>
+            <span class="text-xs text-slate-500">{{ parseFloat(balance).toFixed(4) }} ETH</span>
+          </div>
+        </div>
+
+        <!-- Comment Input -->
+        <div class="p-5">
+          <textarea 
+            v-model="commentText"
+            placeholder="Write your comment..."
+            class="w-full border border-slate-200 rounded-xl p-3 text-sm resize-none h-24 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
+            :disabled="!isConnected || isProcessing"
+          ></textarea>
+        </div>
+
+        <!-- Transaction States -->
+        <div class="px-5 pb-3">
+          <!-- Pending State -->
+          <div v-if="transactionState === 'pending'" class="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-3">
+            <div class="flex items-center gap-3">
+              <div class="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+              <div>
+                <p class="text-sm font-medium text-blue-800">Transaction Pending</p>
+                <p class="text-xs text-blue-600">Please confirm in MetaMask...</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Success State -->
+          <div v-if="transactionState === 'success'" class="bg-green-50 border border-green-200 rounded-xl p-4 mb-3">
+            <div class="flex items-center gap-3">
+              <i class="fa-solid fa-check-circle text-2xl text-green-500"></i>
+              <div>
+                <p class="text-sm font-medium text-green-800">Payment Successful!</p>
+                <p class="text-xs text-green-600">Your comment has been posted.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Error State -->
+          <div v-if="transactionState === 'error'" class="bg-red-50 border border-red-200 rounded-xl p-4 mb-3">
+            <div class="flex items-start gap-3">
+              <i class="fa-solid fa-exclamation-circle text-2xl text-red-500"></i>
+              <div>
+                <p class="text-sm font-medium text-red-800">Transaction Failed</p>
+                <p class="text-xs text-red-600">{{ errorMessage }}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Modal Actions -->
+        <div class="p-5 bg-slate-50 flex gap-3">
+          <button 
+            @click="closeCommentModal"
+            class="flex-1 bg-white border border-slate-200 text-slate-700 text-sm font-semibold px-4 py-2.5 rounded-lg hover:bg-slate-50 transition-colors"
+          >
+            Cancel
+          </button>
+          <button 
+            @click="submitCommentWithPayment"
+            :disabled="!isConnected || !commentText.trim() || isProcessing"
+            class="flex-1 bg-gradient-to-r from-indigo-500 to-purple-500 text-white text-sm font-semibold px-4 py-2.5 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          >
+            <i class="fa-brands fa-ethereum"></i>
+            Pay & Comment
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref } from 'vue'
+import { useWeb3 } from '../composables/useWeb3'
+
+const {
+  isMetaMaskInstalled,
+  isConnected,
+  shortAddress,
+  balance,
+  networkName,
+  isProcessing,
+  transactionState,
+  errorMessage,
+  COMMENT_PAYMENT_AMOUNT,
+  connectWallet,
+  disconnectWallet,
+  payForComment,
+  resetTransactionState
+} = useWeb3()
 
 const trendingTopics = ref([
   { name: '#React 19', posts: '1,234' },
@@ -127,4 +319,47 @@ const posts = ref([
     comments: 34
   }
 ])
+
+// Comment Modal State
+const showCommentModal = ref(false)
+const selectedPost = ref<any>(null)
+const commentText = ref('')
+
+// Open comment modal
+const openCommentModal = (post: any) => {
+  selectedPost.value = post
+  showCommentModal.value = true
+  resetTransactionState()
+  commentText.value = ''
+}
+
+// Close comment modal
+const closeCommentModal = () => {
+  showCommentModal.value = false
+  selectedPost.value = null
+  commentText.value = ''
+  resetTransactionState()
+}
+
+// Submit comment with payment
+const submitCommentWithPayment = async () => {
+  if (!commentText.value.trim() || !isConnected.value) return
+
+  const success = await payForComment()
+  
+  if (success) {
+    // In a real app, you would save the comment to your backend here
+    console.log('Comment submitted:', commentText.value)
+    
+    // Update the post's comment count
+    if (selectedPost.value) {
+      selectedPost.value.comments++
+    }
+
+    // Close modal after a brief delay to show success state
+    setTimeout(() => {
+      closeCommentModal()
+    }, 2000)
+  }
+}
 </script>

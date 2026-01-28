@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { RouterLink, useRouter } from 'vue-router' // Update import ini
 import { useUser } from '../composables/useUser'
 import { supabase } from '../lib/supabase'
+import path from 'path'
 
 const router = useRouter()
 const { userProfile, userRoles, currentMode, toggleMode, hasRole } = useUser()
@@ -26,6 +27,7 @@ const creatorMenu = [
   { path: '/dashboard', name: 'Creator Stats', icon: 'fa-chart-line' }, // Bisa diarahkan ke dashboard khusus nanti
   { path: '/my-courses', name: 'Manage Courses', icon: 'fa-layer-group' },
   { path: '/mentor-schedule', name: 'My Schedule', icon: 'fa-calendar-check' },
+  { path: '/mentor-profile', name: 'My Mentor Profile', icon: 'fa-id-badge' },
 ]
 
 // Tentukan menu mana yang tampil
