@@ -15,7 +15,7 @@ const isExpert = computed(() => hasRole('instructor') || hasRole('mentor'))
 const learnerMenu = [
   { path: '/dashboard', name: 'Dashboard', icon: 'fa-grid-2' },
   // 👇 TAMBAHAN BARU DI SINI
-  { path: '/roadmap', name: 'AI Roadmap', icon: 'fa-wand-magic-sparkles' }, 
+  { path: '/ai-chat', name: 'AI Chat', icon: 'fa-robot' },
   { path: '/courses', name: 'Explore Courses', icon: 'fa-book-open' },
   { path: '/marketplace', name: 'Marketplace', icon: 'fa-store' },
   { path: '/mentoring', name: 'Find Mentor', icon: 'fa-video' },

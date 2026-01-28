@@ -10,7 +10,7 @@ import MarketplaceView from '../views/MarketplaceView.vue'
 import CommunityView from '../views/CommunityView.vue'
 import MentoringView from '../views/MentoringView.vue'
 import DiscussionView from '../views/DiscussionView.vue'
-import RoadmapView from '../views/RoadmapView.vue'
+import AiChatView from '../views/AiChatView.vue'
 
 // Lazy Load untuk halaman berat/admin
 const ManageCoursesView = () => import('../views/creator/ManageCoursesView.vue')
@@ -35,8 +35,8 @@ const router = createRouter({
     { path: '/course/:id', name: 'course-detail', component: () => import('../views/CourseDetailView.vue'),meta: { layout: 'app' } },
 
     // Member Area
-    { path: '/roadmap', name: 'roadmap', component: RoadmapView, meta: { requiresAuth: true, layout: 'app' } },
     { path: '/dashboard', name: 'dashboard', component: DashboardView, meta: { requiresAuth: true, layout: 'app' } },
+    { path: '/ai-chat', name: 'ai-chat', component: AiChatView, meta: { requiresAuth: true, layout: 'app' } },
     { path: '/courses', name: 'courses', component: CoursesView, meta: { requiresAuth: true, layout: 'app' } },
     { path: '/course/:id', name: 'course-detail', component: () => import('../views/CourseDetailView.vue'),meta: { layout: 'app' } },
     { path: '/marketplace', name: 'marketplace', component: MarketplaceView, meta: { requiresAuth: true, layout: 'app' } },
