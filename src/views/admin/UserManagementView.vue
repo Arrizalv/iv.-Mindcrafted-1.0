@@ -23,16 +23,13 @@ const fetchUsersAndRoles = async () => {
       `)
       .order('created_at', { ascending: false })
 
-    if (error) throw error // Lempar error biar ketangkep catch
+    if (error) throw error 
 
     if (profilesData) {
-      console.log("Data Users Mentah:", profilesData) // Cek di Console Browser
-
       // B. Ratakan struktur datanya
       users.value = profilesData.map(user => ({
         ...user,
         // Mapping user_roles jadi array string simple
-        // Handle kalo user_roles null/undefined
         roles: user.user_roles ? user.user_roles.map(ur => ur.roles?.name).filter(Boolean) : []
       }))
     }
@@ -65,6 +62,12 @@ const addRole = async (user, roleName) => {
   if (!confirm(`Promote ${user.full_name} to ${roleName}?`)) return
   
   const roleId = rolesList.value.find(r => r.name === roleName)?.id
+  
+  if (!roleId) {
+    alert(`Role '${roleName}' not found in database. Make sure you added it in SQL.`)
+    return
+  }
+
   const { error } = await supabase.from('user_roles').insert({ user_id: user.id, role_id: roleId })
 
   if (error) alert(error.message)
@@ -94,8 +97,8 @@ onMounted(() => { fetchUsersAndRoles() })
   <div>
     <div class="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
       <div>
-        <h1 class="text-2xl font-bold text-slate-800">User Management</h1>
-        <p class="text-slate-500">Manage access and roles for {{ users.length }} registered users.</p>
+        <h1 class="text-2xl font-bold text-slate-800 dark:text-white">User Management</h1>
+        <p class="text-slate-500 dark:text-slate-400">Manage access and roles for {{ users.length }} registered users.</p>
       </div>
       
       <div class="relative w-full md:w-64">
@@ -104,22 +107,22 @@ onMounted(() => { fetchUsersAndRoles() })
           v-model="searchQuery" 
           type="text" 
           placeholder="Search users..." 
-          class="w-full pl-9 pr-4 py-2 rounded-xl border border-slate-200 focus:border-[#00d4e3] focus:ring-2 focus:ring-cyan-100 outline-none text-sm"
+          class="w-full pl-9 pr-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm dark:text-white focus:border-[#00d4e3] focus:ring-2 focus:ring-cyan-100 outline-none"
         >
       </div>
     </div>
 
-    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+    <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
       <div class="overflow-x-auto">
         <table class="w-full text-left border-collapse">
-          <thead class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider font-semibold border-b border-slate-100">
+          <thead class="bg-slate-50 dark:bg-slate-700/50 text-slate-500 dark:text-slate-300 text-xs uppercase tracking-wider font-semibold border-b border-slate-100 dark:border-slate-700">
             <tr>
               <th class="p-5">User Profile</th>
               <th class="p-5">Current Roles</th>
               <th class="p-5 text-right">Actions</th>
             </tr>
           </thead>
-          <tbody class="divide-y divide-slate-100 text-sm">
+          <tbody class="divide-y divide-slate-100 dark:divide-slate-700 text-sm">
             
             <tr v-if="loading">
               <td colspan="3" class="p-8 text-center text-slate-400 italic">Loading user database...</td>
@@ -129,12 +132,12 @@ onMounted(() => { fetchUsersAndRoles() })
               <td colspan="3" class="p-8 text-center text-slate-400">No users found.</td>
             </tr>
 
-            <tr v-else v-for="user in filteredUsers" :key="user.id" class="hover:bg-slate-50 transition-colors group">
+            <tr v-else v-for="user in filteredUsers" :key="user.id" class="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors group">
               <td class="p-5">
                 <div class="flex items-center gap-3">
                   <img :src="user.avatar_url || 'https://ui-avatars.com/api/?name=User'" class="w-10 h-10 rounded-full bg-slate-200 object-cover">
                   <div>
-                    <h4 class="font-bold text-slate-800">{{ user.full_name }}</h4>
+                    <h4 class="font-bold text-slate-800 dark:text-white">{{ user.full_name }}</h4>
                     <p class="text-xs text-slate-400 font-mono">{{ user.email }}</p>
                     <p class="text-[10px] text-slate-300">ID: {{ user.id.slice(0,8) }}...</p>
                   </div>
@@ -147,10 +150,11 @@ onMounted(() => { fetchUsersAndRoles() })
                     v-for="role in user.roles" :key="role" 
                     class="px-2.5 py-1 rounded-md text-[10px] font-bold uppercase border"
                     :class="{
-                      'bg-slate-100 border-slate-200 text-slate-600': role === 'student',
-                      'bg-blue-50 border-blue-100 text-blue-600': role === 'instructor',
-                      'bg-purple-50 border-purple-100 text-purple-600': role === 'mentor',
-                      'bg-red-50 border-red-100 text-red-600': role === 'admin'
+                      'bg-slate-100 border-slate-200 text-slate-600 dark:bg-slate-700 dark:border-slate-600 dark:text-slate-300': role === 'student',
+                      'bg-blue-50 border-blue-100 text-blue-600 dark:bg-blue-900/30 dark:border-blue-800 dark:text-blue-400': role === 'instructor',
+                      'bg-purple-50 border-purple-100 text-purple-600 dark:bg-purple-900/30 dark:border-purple-800 dark:text-purple-400': role === 'mentor',
+                      'bg-teal-50 border-teal-100 text-teal-600 dark:bg-teal-900/30 dark:border-teal-800 dark:text-teal-400': role === 'freelancer',
+                      'bg-red-50 border-red-100 text-red-600 dark:bg-red-900/30 dark:border-red-800 dark:text-red-400': role === 'admin'
                     }"
                   >
                     {{ role }}
@@ -191,6 +195,23 @@ onMounted(() => { fetchUsersAndRoles() })
                     @click="removeRole(user, 'mentor')"
                     class="w-8 h-8 rounded-lg bg-white border border-slate-200 text-slate-400 hover:border-red-500 hover:text-red-500 transition flex items-center justify-center"
                     title="Remove Mentor"
+                  >
+                    <i class="fa-solid fa-ban"></i>
+                  </button>
+
+                  <button 
+                    v-if="!user.roles.includes('freelancer')"
+                    @click="addRole(user, 'freelancer')"
+                    class="w-8 h-8 rounded-lg bg-teal-50 text-teal-600 hover:bg-teal-600 hover:text-white transition flex items-center justify-center"
+                    title="Promote to Freelancer"
+                  >
+                    <i class="fa-solid fa-briefcase"></i>
+                  </button>
+                  <button 
+                    v-else
+                    @click="removeRole(user, 'freelancer')"
+                    class="w-8 h-8 rounded-lg bg-white border border-slate-200 text-slate-400 hover:border-red-500 hover:text-red-500 transition flex items-center justify-center"
+                    title="Remove Freelancer"
                   >
                     <i class="fa-solid fa-ban"></i>
                   </button>

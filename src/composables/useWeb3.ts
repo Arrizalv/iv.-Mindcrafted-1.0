@@ -112,7 +112,7 @@ export function useWeb3() {
             if (accounts.length === 0) {
                 disconnectWallet()
             } else {
-                walletAddress.value = accounts[0]
+                walletAddress.value = accounts[0] || null
                 updateBalance()
             }
         })
