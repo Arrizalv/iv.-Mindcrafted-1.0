@@ -98,7 +98,7 @@ const handleLogout = async () => {
             <div class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-3 text-white">
               <i class="fa-solid fa-chalkboard-user"></i>
             </div>
-            <h4 class="text-white font-bold text-sm mb-1">Become a Mentor</h4>
+            <h4 class="text-white font-bold text-sm mb-1">Become a Creator</h4>
             <p class="text-indigo-100 text-[10px] mb-3">Earn from your expertise</p>
             <router-link 
               to="/apply-instructor" 

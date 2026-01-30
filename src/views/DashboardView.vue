@@ -158,7 +158,7 @@ onMounted(() => {
               <div class="w-12 h-12 bg-orange-50 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 rounded-xl flex items-center justify-center text-xl mb-4 group-hover:scale-110 transition-transform">
                 <i class="fa-solid fa-layer-group"></i>
               </div>
-              <h3 class="font-bold text-lg text-slate-800 dark:text-white group-hover:text-orange-600 transition-colors">Course Manager</h3>
+              <h3 class="font-bold text-lg text-slate-800 dark:text-white group-hover:text-orange-600 transition-colors">Admin Moderation</h3>
               <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Moderate content.</p>
             </div>
           </div>
@@ -180,7 +180,7 @@ onMounted(() => {
           @click="router.push('/apply-instructor')" 
           class="bg-white text-[#1a1b41] px-6 py-3 rounded-xl font-bold hover:bg-[#00d4e3] hover:shadow-lg transition-all whitespace-nowrap"
         >
-          Become an Instructor <i class="fa-solid fa-arrow-right ml-2"></i>
+          Become an Creator <i class="fa-solid fa-arrow-right ml-2"></i>
         </button>
       </div>
     </div>

@@ -34,7 +34,7 @@ const commentText = ref('')
 const commentsList = ref([]) 
 const loadingComments = ref(false)
 
-// 1. FETCH POSTS
+// 1. FETCH POSTS (DENGAN FILTER STATUS)
 const fetchPosts = async () => {
   loading.value = true
   
@@ -43,26 +43,30 @@ const fetchPosts = async () => {
     .select(`
       *,
       profiles:profiles!fk_community_posts_profiles ( full_name, avatar_url, role ),
-      post_likes ( user_id )
+      post_likes ( user_id ),
+      likes_count,
+      comments_count
     `)
     .order('created_at', { ascending: false })
 
+  // --- LOGIC FILTER ---
   if (filter.value === 'My Posts' && userProfile.value) {
+    // Kalau lihat post sendiri, tampilkan semua (termasuk hidden)
     query = query.eq('user_id', userProfile.value.id)
+  } else {
+    // Kalau lihat All / Trending, HANYA tampilkan yang 'active'
+    // Kita gunakan .or() untuk handle status 'active' ATAU null (jaga-jaga data lama)
+    query = query.or('status.eq.active,status.is.null') 
   }
 
   const { data, error } = await query
 
-  if (error) {
-    console.error("Error fetch posts:", error)
-  }
+  if (error) console.error("Error fetching posts:", error.message)
 
   if (data) {
     posts.value = data.map(post => ({
       ...post,
-      isLiked: post.post_likes && post.post_likes.some(like => like.user_id === userProfile.value?.id),
-      likes_count: post.likes_count || 0, 
-      comments_count: post.comments_count || 0
+      isLiked: post.post_likes && post.post_likes.some(l => l.user_id === userProfile.value?.id),
     }))
   }
   loading.value = false
@@ -85,7 +89,6 @@ const createPost = async () => {
       user_id: userProfile.value.id,
       content: newPostContent.value,
       tags: tagsArray,
-      // tx_hash: txHash // Simpan hash kalau mau
     })
 
     if (!error) {
@@ -96,6 +99,25 @@ const createPost = async () => {
     } else {
       alert("Error saving post: " + error.message)
     }
+  }
+}
+
+// --- FITUR BARU: DELETE POST ---
+const deletePost = async (postId) => {
+  if (!confirm("Yakin ingin menghapus postingan ini?")) return
+
+  const { error } = await supabase
+    .from('community_posts')
+    .delete()
+    .eq('id', postId)
+    .eq('user_id', userProfile.value.id) // Security check ganda
+
+  if (!error) {
+    // Hapus dari state lokal biar responsif (gak perlu refresh)
+    posts.value = posts.value.filter(p => p.id !== postId)
+    alert("Postingan dihapus.")
+  } else {
+    alert("Gagal menghapus: " + error.message)
   }
 }
 
@@ -120,17 +142,18 @@ const openCommentModal = async (post) => {
   commentText.value = ''
   
   loadingComments.value = true
+  
   const { data, error } = await supabase
     .from('community_comments')
     .select(`
       *, 
-      /* FIX: Panggil constraint comments */
-      profiles:profiles!fk_community_comments_profiles(full_name, avatar_url)
+      profiles:profiles!fk_community_comments_profiles ( full_name, avatar_url )
     `)
     .eq('post_id', post.id)
     .order('created_at', { ascending: true })
   
-  if (error) console.error("Error comments:", error)
+  if (error) console.error("Error fetching comments:", error.message)
+  
   commentsList.value = data || []
   loadingComments.value = false
 }
@@ -151,7 +174,6 @@ const submitCommentWithPayment = async () => {
     if (!error) {
       if (selectedPost.value) selectedPost.value.comments_count++
       
-      // Refresh list
       const { data } = await supabase
         .from('community_comments')
         .select(`*, profiles:profiles!fk_community_comments_profiles(full_name, avatar_url)`)
@@ -163,6 +185,24 @@ const submitCommentWithPayment = async () => {
     } else {
       alert("Error saving comment: " + error.message)
     }
+  }
+}
+
+// --- FITUR BARU: DELETE COMMENT ---
+const deleteComment = async (commentId) => {
+  if (!confirm("Hapus komentar ini?")) return
+
+  const { error } = await supabase
+    .from('community_comments')
+    .delete()
+    .eq('id', commentId)
+    .eq('user_id', userProfile.value.id)
+
+  if (!error) {
+    commentsList.value = commentsList.value.filter(c => c.id !== commentId)
+    if (selectedPost.value) selectedPost.value.comments_count--
+  } else {
+    alert("Gagal menghapus komentar: " + error.message)
   }
 }
 
@@ -218,6 +258,14 @@ onMounted(() => {
                 <p class="text-[10px] text-slate-500 dark:text-slate-400">{{ timeAgo(post.created_at) }}</p>
               </div>
             </div>
+            <button 
+              v-if="userProfile && post.user_id === userProfile.id" 
+              @click.stop="deletePost(post.id)"
+              class="text-slate-300 hover:text-red-500 transition px-2"
+              title="Delete Post"
+            >
+              <i class="fa-solid fa-trash-can"></i>
+            </button>
           </div>
           <p class="text-sm text-slate-700 dark:text-slate-300 mb-3 whitespace-pre-line">{{ post.content }}</p>
           <div class="flex flex-wrap gap-2 mb-4">
@@ -259,11 +307,21 @@ onMounted(() => {
         <div class="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50 dark:bg-slate-900/50">
            <div v-if="loadingComments" class="text-center text-xs text-slate-400">Loading...</div>
            <div v-else-if="commentsList.length === 0" class="text-center text-xs text-slate-400">No comments yet.</div>
-           <div v-for="comment in commentsList" :key="comment.id" class="bg-white dark:bg-slate-800 p-3 rounded-xl border border-slate-100 dark:border-slate-700 text-sm">
-              <div class="flex items-center gap-2 mb-1">
-                 <img :src="comment.profiles?.avatar_url" class="w-5 h-5 rounded-full">
-                 <span class="font-bold text-xs dark:text-white">{{ comment.profiles?.full_name }}</span>
-                 <span v-if="comment.tx_hash" class="text-[9px] bg-amber-100 text-amber-700 px-1 rounded border border-amber-200">💎 Paid</span>
+           <div v-for="comment in commentsList" :key="comment.id" class="bg-white dark:bg-slate-800 p-3 rounded-xl border border-slate-100 dark:border-slate-700 text-sm relative group">
+              <div class="flex justify-between items-start">
+                  <div class="flex items-center gap-2 mb-1">
+                     <img :src="comment.profiles?.avatar_url" class="w-5 h-5 rounded-full">
+                     <span class="font-bold text-xs dark:text-white">{{ comment.profiles?.full_name }}</span>
+                     <span v-if="comment.tx_hash" class="text-[9px] bg-amber-100 text-amber-700 px-1 rounded border border-amber-200">💎 Paid</span>
+                  </div>
+                  <button 
+                    v-if="userProfile && comment.user_id === userProfile.id"
+                    @click="deleteComment(comment.id)"
+                    class="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition"
+                    title="Delete Comment"
+                  >
+                    <i class="fa-solid fa-xmark"></i>
+                  </button>
               </div>
               <p class="text-slate-600 dark:text-slate-300 text-xs">{{ comment.content }}</p>
            </div>
