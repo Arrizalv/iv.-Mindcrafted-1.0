@@ -5,6 +5,7 @@ import { supabase } from '../../lib/supabase'
 import draggable from 'vuedraggable'
 import { QuillEditor } from '@vueup/vue-quill'
 import '@vueup/vue-quill/dist/vue-quill.snow.css'
+import ImageUploader from '../../components/ImageUploader.vue'
 
 const route = useRoute()
 const courseId = route.params.id
@@ -283,6 +284,15 @@ onMounted(() => fetchCourseData())
             <div v-else class="w-full h-full flex items-center justify-center text-slate-400">
               <i class="fa-solid fa-image text-4xl"></i>
             </div>
+          </div>
+          <div class="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700">
+            <h3 class="font-bold mb-4 dark:text-white text-sm uppercase tracking-wide text-slate-400">Course Thumbnail</h3>
+            
+            <ImageUploader 
+              bucket="course-images"
+              :default-image="course.image_url"
+              @update:url="(url) => course.image_url = url"
+            />
           </div>
           <label class="block">
             <span class="text-xs font-bold text-slate-500 mb-1 block">Image URL</span>

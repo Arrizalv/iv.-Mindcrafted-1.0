@@ -11,15 +11,16 @@ import CommunityView from '../views/CommunityView.vue'
 import MentoringView from '../views/MentoringView.vue'
 import DiscussionView from '../views/DiscussionView.vue'
 import AiChatView from '../views/AiChatView.vue'
+import ShareStoryView from '../views/ShareStoryView.vue'
 
 // Lazy Load untuk halaman berat/admin
 const ManageCoursesView = () => import('../views/creator/ManageCoursesView.vue')
 const MentorScheduleView = () => import('../views/creator/MentorScheduleView.vue')
+const AdminContentManager= () => import('../views/admin/AdminContentManager.vue')
 const UserManagementView = () => import('../views/admin/UserManagementView.vue')
 const UnauthorizedView = () => import('../views/UnauthorizedView.vue')
 const BecomeInstructorView = () => import('../views/BecomeInstructorView.vue')
 const AdminApplicationsView = () => import('../views/admin/AdminApplicationsView.vue')
-const AdminCoursesView = () => import('../views/admin/AdminCoursesView.vue')
 const MentorProfileView = () => import('../views/creator/MentorProfileView.vue')
 const ManageServicesView = () => import('../views/creator/ManageServicesView.vue')
 const ServiceDetailView = () => import('../views/ServiceDetailView.vue')
@@ -44,6 +45,7 @@ const router = createRouter({
     { path: '/mentoring', name: 'mentoring', component: MentoringView, meta: { requiresAuth: true, layout: 'app' } },
     { path: '/discussion', name: 'discussion', component: DiscussionView, meta: { requiresAuth: true, layout: 'app' } },
     { path: '/apply-instructor', name: 'apply-instructor', component: BecomeInstructorView, meta: { requiresAuth: true, layout: 'app' } },
+    { path: '/share-story', name: 'share-story', component: ShareStoryView, meta: { requiresAuth: true, layout: 'app' } },
     
     // Creator Area
     { path: '/creator-dashboard', name: 'creator-dashboard', component: CreatorDashboardView, meta: { requiresAuth: true, layout: 'app', allowedRoles: ['instructor', 'mentor', 'freelancer', 'admin'] } },
@@ -55,10 +57,10 @@ const router = createRouter({
     { path: '/service/:id', name: 'service-detail', component: ServiceDetailView, meta: { requiresAuth: true, layout: 'app' } },
 
     // Admin Area
+    ({ path: '/admin', name: 'admin-dashboard', component: AdminContentManager, meta: { requiresAuth: true, layout: 'app', allowedRoles: ['admin'] } }),
     { path: '/admin/users', name: 'admin-users', component: UserManagementView, meta: { requiresAuth: true, layout: 'app', allowedRoles: ['admin'] } },
     { path: '/admin/applications', name: 'admin-applications', component: AdminApplicationsView, meta: { requiresAuth: true, layout: 'app', allowedRoles: ['admin'] } },
-    { path: '/admin/courses', name: 'admin-courses', component: AdminCoursesView, meta: { requiresAuth: true, layout: 'app', allowedRoles: ['admin'] } },
-    
+
     // Error
     { path: '/unauthorized', name: 'unauthorized', component: UnauthorizedView, meta: { layout: 'landing' } }
   ]

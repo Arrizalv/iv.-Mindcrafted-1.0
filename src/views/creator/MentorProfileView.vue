@@ -3,6 +3,7 @@
 import { ref, onMounted, computed } from 'vue'
 import { supabase } from '../../lib/supabase'
 import { useUser } from '../../composables/useUser'
+import ImageUploader from '../../components/ImageUploader.vue'
 
 const { userProfile } = useUser()
 const loading = ref(true)
@@ -62,9 +63,14 @@ onMounted(() => { fetchMyProfile() })
 
           <div class="mt-4">
             <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">Profile Image URL</label>
-            <div class="flex gap-2">
-              <input v-model="form.image_url" type="text" placeholder="https://..." class="flex-1 p-2.5 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-sm dark:text-white focus:ring-2 focus:ring-[#00d4e3] outline-none">
-            </div>
+              <div class="mt-4">
+                  <ImageUploader 
+                    bucket="mentor-images"
+                    label="Profile Photo"
+                    :default-image="form.image_url"
+                    @update:url="(url) => form.image_url = url"
+                  />
+                </div>
           </div>
         </div>
 

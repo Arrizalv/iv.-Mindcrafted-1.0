@@ -150,7 +150,7 @@ onMounted(() => {
         </div>
 
         <div 
-          @click="router.push('/admin/courses')"
+          @click="router.push('/admin')"
           class="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 cursor-pointer group hover:shadow-md hover:border-orange-400 transition-all relative overflow-hidden"
         >
           <div class="flex items-start justify-between relative z-10">

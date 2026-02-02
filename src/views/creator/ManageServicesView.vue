@@ -2,6 +2,7 @@
 import { ref, onMounted } from 'vue'
 import { supabase } from '../../lib/supabase'
 import { useUser } from '../../composables/useUser'
+import ImageUploader from '../../components/ImageUploader.vue'
 
 const { userProfile } = useUser()
 const services = ref([])
@@ -183,7 +184,14 @@ onMounted(() => { if (userProfile.value) fetchMyServices() })
               </select>
             </div>
           </div>
-
+          <div>
+              <ImageUploader 
+                bucket="service-images"
+                label="Service Cover Image"
+                :default-image="form.image_url"
+                @update:url="(url) => form.image_url = url"
+              />
+            </div>    
           <div>
             <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">Image URL</label>
             <input v-model="form.image_url" type="text" placeholder="https://..." 
