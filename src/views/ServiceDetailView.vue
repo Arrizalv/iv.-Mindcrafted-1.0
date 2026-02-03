@@ -1,27 +1,28 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { supabase } from '../lib/supabase'
 import { useUser } from '../composables/useUser'
 
-const { userProfile } = useUser()
 const route = useRoute()
 const router = useRouter()
+const { userProfile } = useUser()
 
 const service = ref(null)
 const loading = ref(true)
-const showOrderModal = ref(false)
-const orderMessage = ref('')
-const submitting = ref(false)
+const showModal = ref(false)
+const orderRequirements = ref('')
+const isSubmitting = ref(false)
+const clientPhone = ref('')
 
-// 1. Fetch Detail Jasa
+// 1. Fetch Detail Service
 const fetchServiceDetail = async () => {
   loading.value = true
   const { data, error } = await supabase
     .from('marketplace_services')
     .select(`
       *,
-      profiles:user_id ( id, full_name, avatar_url, role )
+      profiles:user_id ( full_name, avatar_url, role )
     `)
     .eq('id', route.params.id)
     .single()
@@ -35,36 +36,38 @@ const fetchServiceDetail = async () => {
   loading.value = false
 }
 
-// 2. Logic Order / Contact
+// 2. Logic Order (Hire Freelancer)
 const submitOrder = async () => {
-  if (!userProfile.value) return alert("Please login to hire a freelancer.")
-  
-  submitting.value = true
+  if (!userProfile.value) return alert("Please login first!")
+  if (!orderRequirements.value) return alert("Please describe your requirements.")
+  if (!clientPhone.value) return alert("Please enter your WhatsApp number so the freelancer can contact you.") // <--- VALIDASI
 
-  const { error } = await supabase.from('service_orders').insert({
-    service_id: service.value.id,
-    buyer_id: userProfile.value.id,
-    seller_id: service.value.user_id, // ID Freelancer
-    price_deal: service.value.price_start,
-    requirements: orderMessage.value,
-    status: 'pending'
-  })
+  isSubmitting.value = true
 
-  submitting.value = false
+  try {
+    const { error } = await supabase.from('service_orders').insert({
+      service_id: service.value.id,
+      client_id: userProfile.value.id,
+      freelancer_id: service.value.user_id,
+      requirements: orderRequirements.value,
+      price: service.value.price_start,
+      status: 'pending',
+      client_phone: clientPhone.value // <--- SIMPAN NO WA
+    })
 
-  if (!error) {
-    alert("Request sent successfully! The freelancer will contact you shortly.")
-    showOrderModal.value = false
-    // Nanti bisa redirect ke halaman "My Orders"
-  } else {
-    alert("Failed to send request: " + error.message)
+    if (error) throw error
+
+    alert("Order Sent! The freelancer will contact you via WhatsApp shortly.")
+    showModal.value = false
+    orderRequirements.value = ''
+    clientPhone.value = '' // Reset
+    
+  } catch (err) {
+    alert("Order Failed: " + err.message)
+  } finally {
+    isSubmitting.value = false
   }
 }
-
-// Helper: Cek apakah user melihat jasanya sendiri (biar gak order diri sendiri)
-const isMyService = computed(() => {
-  return userProfile.value && service.value && userProfile.value.id === service.value.user_id
-})
 
 const formatPrice = (price) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(price)
 
@@ -72,7 +75,7 @@ onMounted(() => fetchServiceDetail())
 </script>
 
 <template>
-  <div class="max-w-6xl mx-auto pb-20">
+  <div class="max-w-6xl mx-auto py-10 px-4">
     
     <div v-if="loading" class="text-center py-20">
       <i class="fa-solid fa-circle-notch fa-spin text-4xl text-[#00d4e3]"></i>
@@ -81,110 +84,113 @@ onMounted(() => fetchServiceDetail())
     <div v-else-if="service" class="grid grid-cols-1 lg:grid-cols-3 gap-8">
       
       <div class="lg:col-span-2 space-y-8">
-        <div class="rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700 aspect-video bg-slate-100 dark:bg-slate-800">
-          <img :src="service.image_url" class="w-full h-full object-cover">
+        <div class="rounded-2xl overflow-hidden shadow-lg border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800">
+          <img :src="service.image_url" class="w-full h-[400px] object-cover">
         </div>
 
-        <div>
-          <div class="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400 mb-2">
-            <span>Marketplace</span>
-            <i class="fa-solid fa-chevron-right text-[10px]"></i>
-            <span class="text-[#00d4e3] font-bold">{{ service.category }}</span>
-          </div>
+        <div class="bg-white dark:bg-slate-800 p-8 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700">
           <h1 class="text-3xl font-bold text-slate-800 dark:text-white mb-4">{{ service.title }}</h1>
           
-          <div class="flex flex-wrap gap-2">
-            <span v-for="tag in (service.tags || [])" :key="tag" class="px-3 py-1 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-xs font-bold">
-              {{ tag }}
-            </span>
+          <div class="flex items-center gap-4 mb-6 pb-6 border-b border-slate-100 dark:border-slate-700">
+            <img :src="service.profiles?.avatar_url" class="w-12 h-12 rounded-full object-cover">
+            <div>
+              <p class="text-sm text-slate-500 dark:text-slate-400">Service by</p>
+              <h4 class="font-bold text-slate-800 dark:text-white">{{ service.profiles?.full_name }}</h4>
+            </div>
+            <div class="ml-auto flex gap-2">
+              <span v-for="tag in service.tags" :key="tag" class="bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-3 py-1 rounded-full text-xs font-bold">
+                #{{ tag }}
+              </span>
+            </div>
           </div>
-        </div>
 
-        <div class="bg-white dark:bg-slate-800 p-8 rounded-2xl border border-slate-100 dark:border-slate-700">
-          <h3 class="text-lg font-bold text-slate-800 dark:text-white mb-4">About This Gig</h3>
-          <p class="text-slate-600 dark:text-slate-300 leading-relaxed whitespace-pre-line">
-            {{ service.description || 'No description provided.' }}
-          </p>
+          <h3 class="font-bold text-lg mb-3 dark:text-white">About This Gig</h3>
+          <p class="text-slate-600 dark:text-slate-300 leading-relaxed whitespace-pre-line">{{ service.description }}</p>
         </div>
       </div>
 
-      <div class="space-y-6">
-        
-        <div class="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-lg sticky top-6">
-          <div class="flex justify-between items-center mb-6">
-            <span class="text-slate-500 dark:text-slate-400 font-medium">Starting at</span>
+      <div class="lg:col-span-1">
+        <div class="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-lg border border-slate-100 dark:border-slate-700 sticky top-24">
+          <div class="flex justify-between items-end mb-6">
+            <span class="text-slate-500 dark:text-slate-400 font-bold text-sm uppercase">Starting at</span>
             <span class="text-3xl font-bold text-slate-800 dark:text-white">{{ formatPrice(service.price_start) }}</span>
           </div>
 
-          <div v-if="!isMyService">
-            <button 
-              @click="showOrderModal = true"
-              class="w-full bg-[#1a1b41] dark:bg-[#00d4e3] text-white dark:text-[#1a1b41] py-3.5 rounded-xl font-bold text-lg hover:opacity-90 transition shadow-lg shadow-indigo-900/10 mb-3"
-            >
-              Hire Me
-            </button>
-            <button class="w-full border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 py-2.5 rounded-xl font-bold text-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition">
-              Message Seller
-            </button>
-          </div>
-          
-          <div v-else class="bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-400 p-4 rounded-xl text-center text-sm font-bold">
-            ⚡ This is your own service.
-          </div>
+          <button 
+            @click="showModal = true"
+            class="w-full bg-[#00d4e3] text-[#1a1b41] font-bold py-4 rounded-xl hover:shadow-lg hover:-translate-y-1 transition-all mb-4"
+          >
+            Start Project <i class="fa-solid fa-arrow-right ml-2"></i>
+          </button>
 
-          <div class="mt-6 flex items-center justify-center gap-2 text-xs text-slate-400">
-            <i class="fa-solid fa-shield-halved"></i>
-            <span>Secure Transaction with Mindcrafted</span>
-          </div>
-        </div>
-
-        <div class="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-100 dark:border-slate-700">
-          <div class="flex items-center gap-4 mb-4">
-            <img :src="service.profiles?.avatar_url || 'https://ui-avatars.com/api/?name=User'" class="w-16 h-16 rounded-full object-cover border-2 border-slate-100 dark:border-slate-600">
-            <div>
-              <h4 class="font-bold text-slate-800 dark:text-white text-lg">{{ service.profiles?.full_name }}</h4>
-              <p class="text-xs text-slate-500 dark:text-slate-400">Freelancer</p>
+          <div class="space-y-3 text-sm text-slate-500 dark:text-slate-400">
+            <div class="flex items-center gap-3">
+              <i class="fa-solid fa-clock text-[#00d4e3]"></i> <span>Delivery in 3-5 Days</span>
+            </div>
+            <div class="flex items-center gap-3">
+              <i class="fa-solid fa-rotate-left text-[#00d4e3]"></i> <span>2 Revisions Included</span>
+            </div>
+            <div class="flex items-center gap-3">
+              <i class="fa-solid fa-lock text-[#00d4e3]"></i> <span>Secure Payment via Web3</span>
             </div>
           </div>
-          <button class="w-full text-[#00d4e3] font-bold text-sm hover:underline">View Full Profile</button>
         </div>
-
       </div>
+
     </div>
 
-    <div v-if="showOrderModal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-      <div class="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-lg p-6 shadow-2xl animate-fade-in-up border dark:border-slate-700">
-        <div class="flex justify-between items-center mb-6">
-          <h3 class="font-bold text-xl text-slate-800 dark:text-white">Start Project</h3>
-          <button @click="showOrderModal = false" class="text-slate-400 hover:text-red-500"><i class="fa-solid fa-xmark text-xl"></i></button>
+    <div v-if="showModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div class="bg-white dark:bg-slate-900 w-full max-w-md rounded-2xl p-6 shadow-2xl animate-fade-in-up">
+        
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="font-bold text-xl dark:text-white">Start Project</h3>
+          <button @click="showModal = false" class="text-slate-400 hover:text-red-500"><i class="fa-solid fa-xmark"></i></button>
         </div>
 
-        <div class="mb-6 flex gap-4 bg-slate-50 dark:bg-slate-700/50 p-4 rounded-xl">
-           <img :src="service.image_url" class="w-16 h-12 object-cover rounded-lg">
-           <div>
-             <p class="font-bold text-slate-800 dark:text-white text-sm line-clamp-1">{{ service.title }}</p>
-             <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Total: <span class="font-bold text-[#00d4e3]">{{ formatPrice(service.price_start) }}</span></p>
-           </div>
+        <div class="flex items-center gap-3 bg-slate-50 dark:bg-slate-800 p-3 rounded-xl mb-4">
+          <img :src="service.image_url" class="w-12 h-12 rounded-lg object-cover">
+          <div>
+            <h4 class="font-bold text-sm dark:text-white line-clamp-1">{{ service.title }}</h4>
+            <p class="text-xs text-[#00d4e3] font-bold">{{ formatPrice(service.price_start) }}</p>
+          </div>
         </div>
 
-        <div class="mb-6">
-          <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-2">Describe your requirements</label>
-          <textarea 
-            v-model="orderMessage" 
-            rows="5" 
-            class="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-sm dark:text-white focus:ring-2 focus:ring-[#00d4e3] outline-none"
-            placeholder="Hello, I would like to hire you for..."
-          ></textarea>
-        </div>
+        <div class="space-y-4 mb-6">
+      
+      <div>
+        <label class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Describe requirements</label>
+        <textarea 
+          v-model="orderRequirements"
+          rows="3" 
+          placeholder="Hi, I need a website..." 
+          class="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm focus:ring-2 focus:ring-[#00d4e3] outline-none dark:text-white"
+        ></textarea>
+      </div>
 
-        <button 
-          @click="submitOrder" 
-          :disabled="submitting || !orderMessage"
-          class="w-full bg-[#1a1b41] dark:bg-[#00d4e3] text-white dark:text-[#1a1b41] py-3 rounded-xl font-bold hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center gap-2"
-        >
-          <i v-if="submitting" class="fa-solid fa-circle-notch fa-spin"></i>
-          {{ submitting ? 'Sending...' : 'Send Request' }}
-        </button>
+      <div>
+        <label class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Your WhatsApp Number</label>
+        <div class="relative">
+            <i class="fa-brands fa-whatsapp absolute left-4 top-1/2 -translate-y-1/2 text-green-500 text-lg"></i>
+            <input 
+              v-model="clientPhone"
+              type="text" 
+              placeholder="e.g. 628123456789" 
+              class="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm focus:ring-2 focus:ring-green-500 outline-none dark:text-white font-mono"
+            >
+        </div>
+        <p class="text-[10px] text-slate-400 mt-1">Format: Country code first (e.g. 62 for Indonesia). No '+' or spaces.</p>
+      </div>
+
+  </div>
+
+  <button 
+    @click="submitOrder" 
+    :disabled="isSubmitting"
+    class="w-full bg-[#1a1b41] text-white font-bold py-3 rounded-xl hover:opacity-90 disabled:opacity-50 flex justify-center items-center gap-2"
+  >
+    <i v-if="isSubmitting" class="fa-solid fa-circle-notch fa-spin"></i>
+    {{ isSubmitting ? 'Sending...' : 'Send Order Request' }}
+  </button>
       </div>
     </div>
 

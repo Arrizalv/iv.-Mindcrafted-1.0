@@ -25,10 +25,12 @@ const learnerMenu = [
 // Menu buat Creator (Instructor/Mentor)
 const creatorMenu = [
   { path: '/creator-dashboard', name: 'Creator Dashboard', icon: 'fa-chart-line' }, // Bisa diarahkan ke dashboard khusus nanti
+  { path: '/freelancer-orders', name: 'Freelancer Orders', icon: 'fa-file-invoice' }, // Bisa diarahkan ke dashboard khusus nanti
   { path: '/my-courses', name: 'Manage Courses', icon: 'fa-layer-group' },
   { path: '/mentor-schedule', name: 'My Schedule', icon: 'fa-calendar-check' },
   { path: '/mentor-profile', name: 'My Mentor Profile', icon: 'fa-id-badge' },
   { path: '/my-services', name: 'Manage Services', icon: 'fa-briefcase' },
+  { path: '/mentor-sessions', name: 'My Sessions', icon: 'fa-calendar-days' },
 ]
 
 // Tentukan menu mana yang tampil

@@ -25,6 +25,9 @@ const MentorProfileView = () => import('../views/creator/MentorProfileView.vue')
 const ManageServicesView = () => import('../views/creator/ManageServicesView.vue')
 const ServiceDetailView = () => import('../views/ServiceDetailView.vue')
 const CreatorDashboardView = () => import('../views/creator/CreatorDashboardView.vue')
+const FreelancerOrdersView = () => import('../views/creator/FreelancerOrdersView.vue')
+const MentorDetailView = () => import('../views/MentorDetailView.vue')
+const MentorSessionsView = () => import('../views/creator/MentorSessionsView.vue')
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -48,6 +51,7 @@ const router = createRouter({
     { path: '/share-story', name: 'share-story', component: ShareStoryView, meta: { requiresAuth: true, layout: 'app' } },
     
     // Creator Area
+    { path: '/freelancer-orders', name: 'freelancer-orders', component: FreelancerOrdersView, meta: { requiresAuth: true, layout: 'app', allowedRoles: ['freelancer', 'admin'] } },
     { path: '/creator-dashboard', name: 'creator-dashboard', component: CreatorDashboardView, meta: { requiresAuth: true, layout: 'app', allowedRoles: ['instructor', 'mentor', 'freelancer', 'admin'] } },
     { path: '/my-courses', name: 'manage-courses', component: ManageCoursesView, meta: { requiresAuth: true, layout: 'app', allowedRoles: ['instructor', 'admin'] } },
     { path: '/mentor-schedule', name: 'mentor-schedule', component: MentorScheduleView, meta: { requiresAuth: true, layout: 'app', allowedRoles: ['mentor', 'admin'] } },
@@ -55,7 +59,8 @@ const router = createRouter({
     { path: '/instructor/course/:id/edit', name: 'edit-course', component: () => import('../views/creator/EditCourseView.vue'), meta: { requiresAuth: true, layout: 'app', allowedRoles: ['instructor', 'admin'] } },
     { path: '/my-services', name: 'manage-services', component: ManageServicesView, meta: { requiresAuth: true, layout: 'app', allowedRoles: ['freelancer', 'admin'] } },
     { path: '/service/:id', name: 'service-detail', component: ServiceDetailView, meta: { requiresAuth: true, layout: 'app' } },
-
+    { path: '/mentor/:id', name: 'mentor-detail', component: MentorDetailView, meta: { requiresAuth: true, layout: 'app' } },
+    { path: '/mentor-sessions', name: 'mentor-sessions', component: MentorSessionsView, meta: { requiresAuth: true, layout: 'app', allowedRoles: ['mentor', 'admin'] } },
     // Admin Area
     ({ path: '/admin', name: 'admin-dashboard', component: AdminContentManager, meta: { requiresAuth: true, layout: 'app', allowedRoles: ['admin'] } }),
     { path: '/admin/users', name: 'admin-users', component: UserManagementView, meta: { requiresAuth: true, layout: 'app', allowedRoles: ['admin'] } },
