@@ -6,19 +6,15 @@ const corsHeaders = {
 }
 
 serve(async (req) => {
-  // Handle CORS
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
-  }
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
 
   try {
     const { messages } = await req.json()
     const apiKey = Deno.env.get("GROQ_API_KEY")
 
-    if (!apiKey) {
-      throw new Error("GROQ_API_KEY tidak ditemukan di Secrets Supabase!")
-    }
+    if (!apiKey) throw new Error("API_KEY_MISSING: Lu belum setting GROQ_API_KEY di Supabase Secrets!")
 
+    // Kita coba pake model Llama dulu buat ngetes, karena Qwen kadang suka limit
     const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -26,9 +22,9 @@ serve(async (req) => {
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        model: "llama-3.3-70b-versatile",
+        model: "llama-3.3-70b-versatile", // Ganti sementara ke Llama yang lebih stabil
         messages: [
-          { role: "system", content: "Kamu adalah Mindcrafted AI, asisten yang cerdas dan santai." },
+          { role: "system", content: "Kamu asisten Mindcrafted AI." },
           ...messages
         ]
       })
@@ -36,25 +32,24 @@ serve(async (req) => {
 
     const data = await response.json()
 
+    // Kalau Groq ngasih error (misal: API Key salah), kita kirim infonya ke Vue
     if (data.error) {
-      throw new Error(data.error.message)
+      console.error("Groq Error:", data.error)
+      return new Response(
+        JSON.stringify({ reply: `❌ Groq Error: ${data.error.message}` }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      )
     }
 
-    const aiReply = data.choices?.[0]?.message?.content || "Bot sedang bingung."
-
     return new Response(
-      JSON.stringify({ reply: aiReply }),
+      JSON.stringify({ reply: data.choices[0].message.content }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     )
 
-  } } catch (error) {
-    // Balikin error asli biar kita tau masalahnya apa tanpa buka logs
+  } catch (error) {
     return new Response(
-      JSON.stringify({ 
-        error: error.message, 
-        reply: `Aduh! Error nih: ${error.message}` 
-      }),
+      JSON.stringify({ reply: `⚠️ System Error: ${error.message}` }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     )
   }
-)
+})

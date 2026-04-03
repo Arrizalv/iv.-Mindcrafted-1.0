@@ -1,8 +1,8 @@
 <script setup>
-import { ref, onMounted, nextTick, watch } from 'vue'
+import { ref, onMounted, nextTick } from 'vue'
 import { supabase } from '../lib/supabase'
 import { useUser } from '../composables/useUser'
-import { marked } from 'marked' // Import library markdown
+import { marked } from 'marked'
 
 const { userProfile } = useUser()
 const messages = ref([])
@@ -14,59 +14,66 @@ const chatContainer = ref(null)
 const fetchMessages = async () => {
   if (!userProfile.value) return
   
-  const { data, error } = await supabase
+  const { data } = await supabase
     .from('chat_messages')
     .select('*')
-    .order('created_at', { ascending: true }) // Urut dari lama ke baru
+    .order('created_at', { ascending: true })
 
   if (data) messages.value = data
   scrollToBottom()
 }
 
-// 2. Kirim Pesan
+// 2. Kirim Pesan (VERSI SUDAH DIPERBAIKI)
 const sendMessage = async () => {
   if (!userInput.value.trim() || isLoading.value) return
 
   const text = userInput.value
-  userInput.value = '' // Reset input langsung biar UX enak
+  userInput.value = ''
 
-  // A. Tampilkan pesan User di UI (Optimistic UI)
+  // A. Optimistic UI
   const userMsgObj = { role: 'user', content: text }
   messages.value.push(userMsgObj)
   scrollToBottom()
   isLoading.value = true
 
   try {
-    // B. Simpan pesan User ke DB
+    // B. Simpan ke Database
     await supabase.from('chat_messages').insert({
       user_id: userProfile.value.id,
       role: 'user',
       content: text
     })
 
-    // C. Panggil AI (Kirim context 10 pesan terakhir biar hemat token tapi tetep nyambung)
-    const context = messages.value.slice(-10) 
+    // C. PEMBERSIHAN DATA (PENTING: Buang id, created_at, dll sebelum dikirim ke Groq)
+    const cleanContext = messages.value.slice(-10).map(m => ({
+      role: m.role,
+      content: m.content
+    }))
     
+    // D. Panggil Edge Function
     const { data, error } = await supabase.functions.invoke('chat-gemini', {
-      body: { messages: context }
+      body: { messages: cleanContext }
     })
 
     if (error) throw error
 
-    // D. Tampilkan Balasan AI
-    const aiMsgObj = { role: 'assistant', content: data.reply }
-    messages.value.push(aiMsgObj)
+    // E. Tampilkan & Simpan Balasan AI
+    const aiReply = data.reply
+    messages.value.push({ role: 'assistant', content: aiReply })
     
-    // E. Simpan Balasan AI ke DB
     await supabase.from('chat_messages').insert({
       user_id: userProfile.value.id,
       role: 'assistant',
-      content: data.reply
+      content: aiReply
     })
 
   } catch (err) {
-    console.error(err)
-    messages.value.push({ role: 'assistant', content: "⚠️ Error: Gagal terhubung ke AI." })
+    console.error("Error Detail:", err)
+    // Kasih tau error aslinya di chat biar gampang debug
+    messages.value.push({ 
+      role: 'assistant', 
+      content: `⚠️ **Error:** ${err.message || "Gagal terhubung ke AI"}.` 
+    })
   } finally {
     isLoading.value = false
     scrollToBottom()
@@ -76,17 +83,12 @@ const sendMessage = async () => {
 // 3. Clear Chat
 const clearChat = async () => {
   if(!confirm("Hapus semua riwayat chat?")) return
-  
   await supabase.from('chat_messages').delete().eq('user_id', userProfile.value.id)
   messages.value = []
 }
 
-// Helper: Markdown Parser
-const renderMarkdown = (text) => {
-  return marked.parse(text)
-}
+const renderMarkdown = (text) => marked.parse(text)
 
-// Helper: Auto Scroll ke Bawah
 const scrollToBottom = async () => {
   await nextTick()
   if (chatContainer.value) {
@@ -146,7 +148,6 @@ onMounted(() => {
             : 'bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-slate-100 rounded-tl-none border border-slate-100 dark:border-slate-600'"
         >
           <p v-if="msg.role === 'user'">{{ msg.content }}</p>
-          
           <div v-else class="prose prose-sm dark:prose-invert max-w-none" v-html="renderMarkdown(msg.content)"></div>
         </div>
       </div>
@@ -185,7 +186,6 @@ onMounted(() => {
 </template>
 
 <style>
-/* Styling tambahan buat Markdown (List & Code Block) */
 .prose ul { list-style-type: disc; padding-left: 1.5rem; margin-bottom: 0.5rem; }
 .prose ol { list-style-type: decimal; padding-left: 1.5rem; margin-bottom: 0.5rem; }
 .prose pre { background-color: #1e293b; color: #e2e8f0; padding: 0.75rem; rounded: 0.5rem; overflow-x: auto; font-family: monospace; font-size: 0.8em; margin-top: 0.5rem; margin-bottom: 0.5rem; border-radius: 8px;}
