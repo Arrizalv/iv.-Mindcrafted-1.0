@@ -51,7 +51,7 @@ onMounted(async () => {
     
     if (courses) featuredCourses.value = courses
 
-  } catch (error) {
+  } catch (error) { 
     console.error("Error loading landing data:", error)
   } finally {
     loading.value = false

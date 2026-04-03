@@ -9,7 +9,7 @@ const router = useRouter()
 const { userProfile, userRoles, currentMode, toggleMode, hasRole } = useUser()
 
 // Cek status expert
-const isExpert = computed(() => hasRole('instructor') || hasRole('mentor'))
+const isExpert = computed(() => hasRole('instructor') || hasRole('mentor') || hasRole('freelancer'))
 
 // Menu buat Student (LEARNER)
 const learnerMenu = [
@@ -25,11 +25,11 @@ const learnerMenu = [
 // Menu buat Creator (Instructor/Mentor)
 const creatorMenu = [
   { path: '/creator-dashboard', name: 'Creator Dashboard', icon: 'fa-chart-line' }, // Bisa diarahkan ke dashboard khusus nanti
-  { path: '/freelancer-orders', name: 'Freelancer Orders', icon: 'fa-file-invoice' }, // Bisa diarahkan ke dashboard khusus nanti
   { path: '/my-courses', name: 'Manage Courses', icon: 'fa-layer-group' },
-  { path: '/mentor-schedule', name: 'My Schedule', icon: 'fa-calendar-check' },
-  { path: '/mentor-profile', name: 'My Mentor Profile', icon: 'fa-id-badge' },
+  { path: '/freelancer-orders', name: 'Freelancer Orders', icon: 'fa-file-invoice' }, // Bisa diarahkan ke dashboard khusus nanti
   { path: '/my-services', name: 'Manage Services', icon: 'fa-briefcase' },
+  { path: '/mentor-profile', name: 'My Mentor Profile', icon: 'fa-id-badge' },
+  { path: '/mentor-schedule', name: 'My Schedule', icon: 'fa-calendar-check' },
   { path: '/mentor-sessions', name: 'My Sessions', icon: 'fa-calendar-days' },
 ]
 
@@ -39,7 +39,7 @@ const currentMenu = computed(() => {
 })
 
 // Cek apakah user punya hak akses Creator (Instructor atau Mentor)
-const isCreator = computed(() => hasRole('instructor') || hasRole('mentor'))
+const isCreator = computed(() => hasRole('instructor') || hasRole('mentor') || hasRole('freelancer'))
 
 const handleLogout = async () => {
   await supabase.auth.signOut()

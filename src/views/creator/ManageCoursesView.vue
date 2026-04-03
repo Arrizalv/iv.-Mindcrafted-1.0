@@ -89,8 +89,8 @@ onMounted(() => { fetchMyCourses() })
     
     <div class="flex flex-col md:flex-row justify-between items-end mb-8 gap-4">
       <div>
-        <h1 class="text-3xl font-bold text-slate-800 dark:text-white">Instructor Dashboard</h1>
-        <p class="text-slate-500 mt-1">Manage your content and track your performance.</p>
+        <h1 class="text-3xl font-bold text-slate-800 dark:text-white">Courses Manager</h1>
+        <p class="text-slate-500 mt-1">Manage your courses and track it.</p>
       </div>
       <button @click="createCourse" class="bg-[#1a1b41] text-white px-6 py-3 rounded-xl font-bold shadow-lg shadow-indigo-900/20 hover:bg-[#00d4e3] hover:text-[#1a1b41] transition-all flex items-center gap-2 group">
         <i class="fa-solid fa-plus group-hover:rotate-90 transition-transform"></i> 
